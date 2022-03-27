@@ -1,0 +1,36 @@
+declare var async: any;
+declare var net: any;
+declare var http: any;
+declare var https: any;
+declare var util: any;
+declare var fs: any;
+declare var path: any;
+declare var events: any;
+declare var WebSocket: {
+    new (url: string | URL, protocols?: string | string[]): WebSocket;
+    prototype: WebSocket;
+    readonly CLOSED: number;
+    readonly CLOSING: number;
+    readonly CONNECTING: number;
+    readonly OPEN: number;
+};
+declare var url: any;
+declare var semaphore: any;
+declare var ca: any;
+declare var Sentry: any;
+declare const checkInvalidHeaderChar: any;
+declare const debug: any;
+declare const uuidv4: any;
+declare var Proxy: any;
+declare const PROXY_HANDLER_TYPE: {
+    ON_REQUEST: string;
+    ON_REQUEST_HEADERS: string;
+    ON_REQUEST_DATA: string;
+    ON_REQUEST_END: string;
+    ON_RESPONSE: string;
+    ON_RESPONSE_HEADERS: string;
+    ON_RESPONSE_DATA: string;
+    ON_RESPONSE_END: string;
+};
+declare var ProxyFinalRequestFilter: (proxy: any, ctx: any) => void;
+declare var ProxyFinalResponseFilter: (proxy: any, ctx: any) => any;
