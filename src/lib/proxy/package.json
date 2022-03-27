@@ -1,0 +1,15 @@
+{
+  "name": "rq-mitm-proxy",
+  "version": "1.0.0",
+  "description": "MITM Proxy for Requestly",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "http-mitm-proxy": "./bin/mitm-proxy.js"
+  },
+  "author": "Sachin Jain",
+  "license": "ISC"
+}
