@@ -1,4 +1,4 @@
-import { PROXY_HANDLER_TYPE } from "../../../../../renderer/rq-proxy/lib/proxy";
+import { PROXY_HANDLER_TYPE } from "../../../../lib/proxy";
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
 

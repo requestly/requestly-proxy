@@ -1,4 +1,4 @@
-import Queue from "../../../../utils/circularQueue";
+import Queue from "../../../utils/circularQueue";
 
 class ModifiedRequestsPool {
   constructor() {

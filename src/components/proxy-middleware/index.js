@@ -1,7 +1,7 @@
 // Move Proxy code to this package
 var net = require("net");
 
-import Proxy from "../../../renderer/rq-proxy";
+import Proxy from "../../lib/proxy";
 import {
   getRequestContentTypeHeader,
   getResponseContentTypeHeader,
@@ -19,8 +19,8 @@ import SslCertMiddleware from "./middlewares/ssl_cert_middleware";
 import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "./constants";
-import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
-import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
+// import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
+// import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 
 export const MIDDLEWARE_TYPE = {
   AMIUSING: "AMIUSING",
@@ -29,8 +29,8 @@ export const MIDDLEWARE_TYPE = {
   SSL_CERT: "SSL_CERT",
 };
 
-class ProxyMiddleware {
-  constructor(sslConfigFetcher) {
+class ProxyMiddlewareManager {
+  constructor(proxy, proxyConfig, rulesHelper, sslConfigFetcher) {
     /*
     {
       AMIUSING: true,
@@ -42,10 +42,12 @@ class ProxyMiddleware {
     this.config = {};
     this.init_config();
 
-    let request_handler_idx = 42;
+    this.proxy = proxy;
+    this.proxyConfig = proxyConfig;
+    this.rulesHelper = rulesHelper;
 
     this.sslConfigFetcher = sslConfigFetcher;
-    this.sslProxyingManager = new SSLProxyingManager(sslConfigFetcher);
+    // this.sslProxyingManager = new SSLProxyingManager(sslConfigFetcher);
   }
 
   init_config = (config = {}) => {
@@ -59,7 +61,7 @@ class ProxyMiddleware {
     this.init_config(config);
     this.request_handler_idx = 42;
 
-    if (!window.proxy) {
+    if (!this.proxy) {
       return;
     }
 
@@ -72,12 +74,12 @@ class ProxyMiddleware {
   init_request_handler = (fn, is_detachable = false) => {
     if (is_detachable) {
       const idx = this.request_handler_idx;
-      window.proxy.onRequestSetArray(idx, fn);
+      this.proxy.onRequestSetArray(idx, fn);
       this.request_handler_idx++;
       return idx;
     }
 
-    window.proxy.onRequest(fn);
+    this.proxy.onRequest(fn);
   };
 
   init_amiusing_handler = () => {
@@ -92,7 +94,8 @@ class ProxyMiddleware {
 
   init_ssl_cert_handler = () => {
     const ssl_cert_middleware = new SslCertMiddleware(
-      this.config[MIDDLEWARE_TYPE.SSL_CERT]
+      this.config[MIDDLEWARE_TYPE.SSL_CERT],
+      this.proxyConfig.rootCertPath,
     );
     this.init_request_handler((ctx, callback) => {
       ssl_cert_middleware.on_request(ctx);
@@ -115,7 +118,8 @@ class ProxyMiddleware {
       // instead of re-initing this again
       const rules_middleware = new RulesMiddleware(
         this.config[MIDDLEWARE_TYPE.RULES],
-        ctx
+        ctx,
+        this.rulesHelper,
       );
 
       let request_body_chunks = [];
@@ -225,7 +229,7 @@ class ProxyMiddleware {
   };
 
   init_ssl_tunneling_handler = () => {
-    window.proxy.onConnect(async (req, socket, head, callback) => {
+    this.proxy.onConnect(async (req, socket, head, callback) => {
       const host = req.url.split(":")[0];
       const port = req.url.split(":")[1];
       const origin = `https://${host}`;
@@ -294,19 +298,15 @@ class ProxyMiddleware {
   };
 
   init_handlers = () => {
-    window.proxy.onRequestHandlers = [];
-    window.proxy.onConnectHandlers = [];
-    window.proxy.use(Proxy.gunzip);
+    this.proxy.onRequestHandlers = [];
+    this.proxy.onConnectHandlers = [];
+    this.proxy.use(Proxy.gunzip);
 
-    this.init_ssl_tunneling_handler();
+    // this.init_ssl_tunneling_handler();
     this.init_amiusing_handler();
     this.init_ssl_cert_handler();
     this.init_main_handler();
   };
 }
 
-// TODO: Refractor this. This should be provided using DI.
-const sslConfigFetcher = new SSLProxyingConfigFetcher();
-
-const proxy_middleware = new ProxyMiddleware(sslConfigFetcher);
-export default proxy_middleware;
+export default ProxyMiddlewareManager;

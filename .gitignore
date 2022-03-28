@@ -21,3 +21,4 @@ node_modules
 # Build Files
 .webpack
 
+/requestly-master-1.0.0.tgz

@@ -1,4 +1,4 @@
-import { PROXY_HANDLER_TYPE } from "../../../../../renderer/rq-proxy/lib/proxy";
+import { PROXY_HANDLER_TYPE } from "../../../../lib/proxy";
 
 import {
   UTILS as GLOBAL_UTILS,

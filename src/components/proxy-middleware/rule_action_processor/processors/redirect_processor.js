@@ -1,4 +1,4 @@
-import { PROXY_HANDLER_TYPE } from "../../../../../renderer/rq-proxy/lib/proxy";
+import { PROXY_HANDLER_TYPE } from "../../../../lib/proxy";
 import {
   get_request_url,
   is_request_preflight,

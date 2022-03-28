@@ -1,6 +1,5 @@
 const axios = require("axios");
 const parser = require("ua-parser-js");
-const ip = require("ip");
 import * as Sentry from "@sentry/browser";
 
 const handleMixedResponse = async (ctx, destinationUrl) => {

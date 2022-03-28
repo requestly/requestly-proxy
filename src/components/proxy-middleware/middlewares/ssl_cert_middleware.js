@@ -1,12 +1,9 @@
 const fs = require("fs");
 
-import { staticConfig } from "../../../../renderer/config";
-
-const { ROOT_CERT_PATH } = staticConfig;
-
 class SslCertMiddleware {
-  constructor(is_active) {
+  constructor(is_active, rootCertPath) {
     this.is_active = is_active;
+    this.rootCertPath = rootCertPath;
   }
 
   on_request = async (ctx) => {
@@ -22,7 +19,7 @@ class SslCertMiddleware {
         "Content-Type": "text/plain",
         "Content-Disposition": "attachment;filename=RequestlyCA.pem.crt",
       });
-      const certificateString = fs.readFileSync(ROOT_CERT_PATH);
+      const certificateString = fs.readFileSync(this.rootCertPath);
       ctx.proxyToClientResponse.end(certificateString);
     }
   };

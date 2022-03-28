@@ -144,9 +144,9 @@ CA.create = function (caFolder, callback) {
   ca.keysFolder = path.join(ca.baseCAFolder, "keys");
   async.series(
     [ 
-      // mkdirp.bind(null, ca.baseCAFolder),
-      // mkdirp.bind(null, ca.certsFolder),
-      // mkdirp.bind(null, ca.keysFolder),
+      mkdirp.bind(null, ca.baseCAFolder),
+      mkdirp.bind(null, ca.certsFolder),
+      mkdirp.bind(null, ca.keysFolder),
       function (callback) {
         FS.exists(path.join(ca.certsFolder, "ca.pem"), function (exists) {
           if (exists) {

@@ -1,14 +1,20 @@
+import IRulesDataSource from "./components/interfaces/rules-data-source";
 import Proxy from "./lib/proxy";
 import { ProxyConfig } from "./types";
+import RulesHelper from "./utils/helpers/rules-helper";
+import ProxyMiddlewareManager from "./components/proxy-middleware";
 
 
 class RQProxy {
     proxy: any;
-    proxyMiddlewareManager: any;
+    proxyMiddlewareManager!: ProxyMiddlewareManager;
 
-    constructor(proxyConfig: ProxyConfig) {
-        console.log("Hello");
+    rulesHelper: RulesHelper;
+
+    constructor(proxyConfig: ProxyConfig, rulesDataSource: IRulesDataSource) {
         this.initProxy(proxyConfig);
+
+        this.rulesHelper = new RulesHelper(rulesDataSource);
     }
 
     initProxy = (proxyConfig: ProxyConfig) => {
@@ -29,8 +35,8 @@ class RQProxy {
                     console.log(err);
                 } else {
                     console.log("Proxy Started");
-                    // this.proxyMiddlewareManager = new ProxyMiddlewareManager();
-                    // await proxy_middleware.init({ [MIDDLEWARE_TYPE.LOGGER]: false });
+                    this.proxyMiddlewareManager = new ProxyMiddlewareManager(this.proxy, proxyConfig, this.rulesHelper, null);
+                    this.proxyMiddlewareManager.init();
                 }
             }
         );

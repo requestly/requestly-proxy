@@ -1,11 +1,13 @@
 import RQProxy from ".";
+import IRulesDataSource from "./components/interfaces/rules-data-source";
 import { ProxyConfig } from "./types";
 
 class RQProxyProvider {
     static rqProxyInstance:any = null;
 
-    static createInstance = (proxyConfig: ProxyConfig) => {
-        RQProxyProvider.rqProxyInstance = new RQProxy(proxyConfig);
+    // TODO: rulesDataSource can be static here
+    static createInstance = (proxyConfig: ProxyConfig, rulesDataSource: IRulesDataSource) => {
+        RQProxyProvider.rqProxyInstance = new RQProxy(proxyConfig, rulesDataSource);
     }
 
     static getInstance = (): RQProxy => {

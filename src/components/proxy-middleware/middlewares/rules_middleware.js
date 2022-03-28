@@ -1,6 +1,3 @@
-// Import this using DI
-import rules_fetcher from "../../../../renderer/lib/rules/rules_fetcher";
-
 import {
   get_request_url,
   get_original_request_headers,
@@ -10,11 +7,13 @@ import RuleProcessorHelper from "../helpers/rule_processor_helper";
 import RuleActionProcessor from "../rule_action_processor";
 
 class RulesMiddleware {
-  constructor(is_active, ctx) {
+  constructor(is_active, ctx, rulesHelper) {
     this.is_active = is_active;
 
     this.rule_processor_helper = new RuleProcessorHelper();
     this.rule_action_processor = new RuleActionProcessor();
+
+    this.rulesHelper = rulesHelper;
 
     this._init_request_data(ctx);
     this._fetch_rules();
@@ -56,7 +55,7 @@ class RulesMiddleware {
   };
 
   _fetch_rules = () => {
-    this.active_rules = rules_fetcher.get_rules(true);
+    this.active_rules = this.rulesHelper.get_rules(true);
   };
 
   /*

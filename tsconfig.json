@@ -1,6 +1,14 @@
 {
-    "compilerOptions": {
-      "esModuleInterop": true,
-    },
-    "module": "commonjs"
+  "compilerOptions": {                        
+    "target": "es6",                               
+    "module": "commonjs",                           
+    "outDir": "./dist",                             
+    "rootDir": "./src",                             
+    "moduleResolution": "node",
+    "esModuleInterop": true,        
+    "allowJs": true,               
+  },
+  "exclude":[
+    "./node_modules"
+  ]
 }

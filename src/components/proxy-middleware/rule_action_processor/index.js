@@ -43,7 +43,7 @@ class RuleActionProcessor {
       const headers = action_result.post_process_data.headers || {};
       const body = action_result.post_process_data.body || null;
 
-      console.log("Log", ctx.rq.original_request);
+      // console.log("Log", ctx.rq.original_request);
       ctx.proxyToClientResponse.writeHead(status_code, headers).end(body);
 
       ctx.rq.set_final_response({

@@ -1,8 +1,9 @@
-import {
-  extractUrlComponent,
-  getQueryParamsMap,
-} from "../../../../../../../common/components/utils/utils";
-const CONSTANTS = require("../../../../../../../common/constants");
+// TODO: Removing this for now
+// import {
+//   extractUrlComponent,
+//   getQueryParamsMap,
+// } from "../../../../../../../common/components/utils/utils";
+// const CONSTANTS = require("../../../../../../../common/constants");
 
 export const get_request_url = (ctx) => {
   return (
@@ -51,15 +52,15 @@ export const get_response_options = (ctx) => {
 export const get_request_options = (ctx) => {
   return {
     ...ctx.proxyToServerRequestOptions,
-    query_params: get_json_query_params(ctx),
+    // query_params: get_json_query_params(ctx),
   };
 };
 
-export const get_json_query_params = (ctx) => {
-  const url = get_request_url(ctx);
-  let queryString = extractUrlComponent(url, CONSTANTS.URL_COMPONENTS.QUERY);
-  return getQueryParamsMap(queryString) || null;
-};
+// export const get_json_query_params = (ctx) => {
+//   const url = get_request_url(ctx);
+//   let queryString = extractUrlComponent(url, CONSTANTS.URL_COMPONENTS.QUERY);
+//   return getQueryParamsMap(queryString) || null;
+// };
 
 export const getRequestHeaders = (ctx) => {
   if (ctx && ctx.proxyToServerRequestOptions) {

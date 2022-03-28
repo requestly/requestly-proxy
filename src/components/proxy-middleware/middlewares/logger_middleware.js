@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import { cloneDeep } from "lodash";
-import { ipcRenderer } from "electron";
 import HTTPSnippet from "httpsnippet";
 import { get_success_actions_from_action_results } from "../rule_action_processor/utils";
 const url = require("url");
@@ -46,7 +45,7 @@ class LoggerMiddleware {
       },
       actions: actions,
     };
-    ipcRenderer.send("log-network-request", log);
+    // ipcRenderer.send("log-network-request", log);
   };
 
   generate_curl_from_har = (requestHarObject) => {
@@ -104,7 +103,7 @@ class LoggerMiddleware {
       },
       actions: get_success_actions_from_action_results(action_result_objs),
     };
-    ipcRenderer.send("log-network-request", log);
+    // ipcRenderer.send("log-network-request", log);
   };
 }
 
