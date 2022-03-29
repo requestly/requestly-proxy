@@ -15,7 +15,7 @@ const proxyConfig: ProxyConfig = {
 
 
 class RulesDataSource implements IRulesDataSource {
-    getRules = () => {
+    getRules = (requestHeaders) => {
         return [
             {
                 "creationDate": 1648450754463,
@@ -48,7 +48,7 @@ class RulesDataSource implements IRulesDataSource {
         ];
     }
     
-    getGroups = () => {
+    getGroups = (requestHeaders) => {
         return [
             {
                 id: "1",

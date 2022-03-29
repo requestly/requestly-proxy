@@ -55,7 +55,7 @@ class RulesMiddleware {
   };
 
   _fetch_rules = () => {
-    this.active_rules = this.rulesHelper.get_rules(true);
+    this.active_rules = this.rulesHelper.get_rules(true, this.request_data?.request_headers || {});
   };
 
   /*

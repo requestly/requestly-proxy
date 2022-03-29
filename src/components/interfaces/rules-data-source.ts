@@ -1,9 +1,9 @@
 import { Rule, RuleGroup } from "../../types";
 
 interface IRulesDataSource {
-    getRules: () => Rule[]
+    getRules: (requestHeaders: {}) => Rule[]
 
-    getGroups(): RuleGroup[]
+    getGroups(requestHeaders: {}): RuleGroup[]
 }
 
 export default IRulesDataSource;
