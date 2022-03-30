@@ -22,3 +22,5 @@ node_modules
 .webpack
 
 /requestly-master-1.0.0.tgz
+
+/dist/

@@ -1,14 +1,16 @@
 {
   "name": "rq-proxy",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.ts",
-  "directories": {
-    "lib": "lib"
-  },
+  "description": "Proxy that gives superpowers to all the Requestly clients",
+  "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon src/test.ts"
+    "dev": "nodemon src/test.ts",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/requestly/rq-proxy.git"
   },
   "author": "",
   "license": "ISC",
@@ -25,11 +27,13 @@
     "requestly-master": "file:./requestly-master-1.0.0.tgz",
     "semaphore": "^1.1.0",
     "ua-parser-js": "^1.0.2",
+    "url": "^0.11.0",
     "uuid": "^8.3.2",
     "ws": "^8.5.0"
   },
   "devDependencies": {
     "@types/node": "^17.0.23",
-    "nodemon": "^2.0.15"
+    "nodemon": "^2.0.15",
+    "typescript": "^4.6.3"
   }
 }
