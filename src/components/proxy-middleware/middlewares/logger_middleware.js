@@ -5,48 +5,10 @@ import { get_success_actions_from_action_results } from "../rule_action_processo
 const url = require("url");
 
 class LoggerMiddleware {
-  constructor(is_active) {
+  constructor(is_active, loggerService) {
     this.is_active = is_active;
+    this.loggerService = loggerService;
   }
-
-  on_response_end = (ctx, actions = [], body = null, statusCode = null) => {
-    if (!this.is_active) {
-      return true;
-    }
-
-    this.send_network_log(ctx, actions, body, statusCode);
-  };
-
-  send_network_log = (ctx, actions = [], body = null, statusCode = null) => {
-    const log = {
-      id: uuidv4(),
-      timestamp: Math.floor(Date.now() / 1000),
-      url: url.parse(
-        (ctx.isSSL ? "https://" : "http://") +
-          ctx.clientToProxyRequest.headers.host +
-          ctx.clientToProxyRequest.url
-      ).href,
-      request: {
-        method: ctx.proxyToServerRequestOptions.method,
-        path: ctx.proxyToServerRequestOptions.path,
-        host: ctx.proxyToServerRequestOptions.host,
-        port: ctx.proxyToServerRequestOptions.port,
-        headers: ctx.proxyToServerRequestOptions.headers,
-      },
-      response: {
-        statusCode: statusCode || ctx.serverToProxyResponse.statusCode,
-        headers: ctx.serverToProxyResponse.headers,
-        contentType:
-          (ctx.serverToProxyResponse.headers["content-type"] &&
-            ctx.serverToProxyResponse.headers["content-type"].includes(";") &&
-            ctx.serverToProxyResponse.headers["content-type"].split(";")[0]) ||
-          ctx.serverToProxyResponse.headers["content-type"],
-        body: body || null,
-      },
-      actions: actions,
-    };
-    // ipcRenderer.send("log-network-request", log);
-  };
 
   generate_curl_from_har = (requestHarObject) => {
     if (!requestHarObject) {
@@ -104,6 +66,8 @@ class LoggerMiddleware {
       actions: get_success_actions_from_action_results(action_result_objs),
     };
     // ipcRenderer.send("log-network-request", log);
+    // TODO: Sending log for now. Ideally this should be har object
+    this.loggerService.addLog(log, ctx.rq.final_request.headers || {})
   };
 }
 

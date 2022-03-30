@@ -30,7 +30,7 @@ export const MIDDLEWARE_TYPE = {
 };
 
 class ProxyMiddlewareManager {
-  constructor(proxy, proxyConfig, rulesHelper, sslConfigFetcher) {
+  constructor(proxy, proxyConfig, rulesHelper, loggerService, sslConfigFetcher) {
     /*
     {
       AMIUSING: true,
@@ -45,6 +45,7 @@ class ProxyMiddlewareManager {
     this.proxy = proxy;
     this.proxyConfig = proxyConfig;
     this.rulesHelper = rulesHelper;
+    this.loggerService = loggerService;
 
     this.sslConfigFetcher = sslConfigFetcher;
     // this.sslProxyingManager = new SSLProxyingManager(sslConfigFetcher);
@@ -107,7 +108,8 @@ class ProxyMiddlewareManager {
     const self = this;
     const is_detachable = true;
     const logger_middleware = new LoggerMiddleware(
-      this.config[MIDDLEWARE_TYPE.LOGGER]
+      this.config[MIDDLEWARE_TYPE.LOGGER],
+      this.loggerService,
     );
 
     const idx = this.init_request_handler(async (ctx, callback) => {

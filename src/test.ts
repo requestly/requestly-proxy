@@ -1,3 +1,4 @@
+import ILoggerService from "./components/interfaces/logger-service";
 import IRulesDataSource from "./components/interfaces/rules-data-source";
 import RQProxyProvider from "./rq-proxy-provider";
 import { ProxyConfig } from "./types";
@@ -58,8 +59,14 @@ class RulesDataSource implements IRulesDataSource {
     }
 }
 
+class LoggerService implements ILoggerService {
+    addLog = (log: any, requestHeaders: {}) => {
+        console.log(log.url);
+    };
+}
+
 // RQProxyProvider.getInstance().doSomething();
-RQProxyProvider.createInstance(proxyConfig, new RulesDataSource());
+RQProxyProvider.createInstance(proxyConfig, new RulesDataSource(), new LoggerService());
 RQProxyProvider.getInstance().doSomething();
 
 console.log("end");
