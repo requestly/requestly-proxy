@@ -1,4 +1,4 @@
-import RQProxy from ".";
+import RQProxy from "./rq-proxy";
 import ILoggerService from "./components/interfaces/logger-service";
 import IRulesDataSource from "./components/interfaces/rules-data-source";
 import { ProxyConfig } from "./types";

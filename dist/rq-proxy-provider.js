@@ -3,13 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const _1 = __importDefault(require("."));
+const rq_proxy_1 = __importDefault(require("./rq-proxy"));
 class RQProxyProvider {
 }
 RQProxyProvider.rqProxyInstance = null;
 // TODO: rulesDataSource can be static here
 RQProxyProvider.createInstance = (proxyConfig, rulesDataSource, loggerService) => {
-    RQProxyProvider.rqProxyInstance = new _1.default(proxyConfig, rulesDataSource, loggerService);
+    RQProxyProvider.rqProxyInstance = new rq_proxy_1.default(proxyConfig, rulesDataSource, loggerService);
 };
 RQProxyProvider.getInstance = () => {
     if (!RQProxyProvider.rqProxyInstance) {

@@ -1,3 +1,5 @@
+// Temp hack to fix TS9006 while building declarations
+// @ts-nocheck
 "use strict";
 var async = require("async");
 var net = require("net");

@@ -15,7 +15,7 @@ var args = yargs
 }).argv;
 if (args.help) {
     yargs.showHelp();
-    return process.exit(-1);
+    process.exit(-1);
 }
 var proxy = require("../lib/proxy")();
 proxy.onError(function (ctx, err, errorKind) {
