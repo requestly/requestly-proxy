@@ -9,6 +9,7 @@ exports.RULE_ACTION = {
     INSERT: "insert",
     DELAY: "add_delay",
     MODIFY_RESPONSE: "modify_response",
+    MODIFY_REQUEST: "modify_request",
 };
 exports.RQ_INTERCEPTED_CONTENT_TYPES = [
     "text/html",

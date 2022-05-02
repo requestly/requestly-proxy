@@ -3,6 +3,7 @@ var net = require("net");
 
 import Proxy from "../../lib/proxy";
 import {
+  getRequestHeaders,
   getRequestContentTypeHeader,
   getResponseContentTypeHeader,
   getResponseHeaders,
@@ -30,7 +31,13 @@ export const MIDDLEWARE_TYPE = {
 };
 
 class ProxyMiddlewareManager {
-  constructor(proxy, proxyConfig, rulesHelper, loggerService, sslConfigFetcher) {
+  constructor(
+    proxy,
+    proxyConfig,
+    rulesHelper,
+    loggerService,
+    sslConfigFetcher
+  ) {
     /*
     {
       AMIUSING: true,
@@ -96,7 +103,7 @@ class ProxyMiddlewareManager {
   init_ssl_cert_handler = () => {
     const ssl_cert_middleware = new SslCertMiddleware(
       this.config[MIDDLEWARE_TYPE.SSL_CERT],
-      this.proxyConfig.rootCertPath,
+      this.proxyConfig.rootCertPath
     );
     this.init_request_handler((ctx, callback) => {
       ssl_cert_middleware.on_request(ctx);
@@ -109,7 +116,7 @@ class ProxyMiddlewareManager {
     const is_detachable = true;
     const logger_middleware = new LoggerMiddleware(
       this.config[MIDDLEWARE_TYPE.LOGGER],
-      this.loggerService,
+      this.loggerService
     );
 
     const idx = this.init_request_handler(async (ctx, callback) => {
@@ -121,7 +128,7 @@ class ProxyMiddlewareManager {
       const rules_middleware = new RulesMiddleware(
         this.config[MIDDLEWARE_TYPE.RULES],
         ctx,
-        this.rulesHelper,
+        this.rulesHelper
       );
 
       let request_body_chunks = [];
@@ -138,21 +145,28 @@ class ProxyMiddlewareManager {
         const contentType = getContentType(contentTypeHeader);
         const parsedBody = bodyParser(contentTypeHeader, body);
 
-        let final_body = parsedBody || body.toString("utf8");
+        // Request body before any modifications
+        let pre_final_body = parsedBody || body.toString("utf8");
+        ctx.rq.set_original_request({ body: pre_final_body });
+        ctx.rq_request_body = pre_final_body;
 
-        ctx.rq.set_original_request({ body: final_body });
-        ctx.proxyToServerRequest.write(final_body);
-        ctx.rq.set_final_request({ body: final_body });
+        if (RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
+          // Do modifications, if any
+          const { action_result_objs, continue_request } =
+            await rules_middleware.on_request_end(ctx);
+        }
+
+        // Use the updated request
+        ctx.proxyToServerRequest.write(ctx.rq_request_body);
+        ctx.rq.set_final_request({ body: ctx.rq_request_body });
 
         return callback();
       });
 
       ctx.onResponse(async (ctx, callback) => {
         ctx.rq.set_original_response(get_response_options(ctx));
-        const {
-          action_result_objs,
-          continue_request: continue_response,
-        } = await rules_middleware.on_response(ctx);
+        const { action_result_objs, continue_request: continue_response } =
+          await rules_middleware.on_response(ctx);
         if (continue_response) {
           return callback();
         }
@@ -181,10 +195,8 @@ class ProxyMiddlewareManager {
           // Body and status code before any modifications
           ctx.rq_response_body = parsedBody;
 
-          const {
-            action_result_objs,
-            continue_request,
-          } = await rules_middleware.on_response_end(ctx);
+          const { action_result_objs, continue_request } =
+            await rules_middleware.on_response_end(ctx);
 
           // ctx.rq_response_body, ctx.rq_response_status_code after modifications
 
@@ -213,10 +225,11 @@ class ProxyMiddlewareManager {
         return callback();
       });
 
-      const {
-        action_result_objs,
-        continue_request,
-      } = await rules_middleware.on_request(ctx);
+      // Remove headers that may conflict
+      delete getRequestHeaders(ctx)["content-length"];
+
+      const { action_result_objs, continue_request } =
+        await rules_middleware.on_request(ctx);
 
       ctx.rq.set_final_request(get_request_options(ctx));
       // TODO: Removing this log for now. Will add this when support is added for upsert in firebase logs.
@@ -237,9 +250,8 @@ class ProxyMiddlewareManager {
       const port = req.url.split(":")[1];
       const origin = `https://${host}`;
 
-      const isSSLProxyingActive = this.sslProxyingManager.isSslProxyingActive(
-        origin
-      );
+      const isSSLProxyingActive =
+        this.sslProxyingManager.isSslProxyingActive(origin);
       if (isSSLProxyingActive) {
         return callback();
       }

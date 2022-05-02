@@ -94,8 +94,6 @@ class LoggerService {
             log.finalHar = JSON.stringify(log.finalHar);
             (0, axios_1.default)({
                 method: "post",
-                // url : "https://us-central1-project-7820168409702389920.cloudfunctions.net/addSdkLog", // prod
-                // url : "https://us-central1-requestly-dev.cloudfunctions.net/addSdkLog", // beta
                 url: "http://localhost:5001/requestly-dev/us-central1/addSdkLog",
                 headers,
                 data: log

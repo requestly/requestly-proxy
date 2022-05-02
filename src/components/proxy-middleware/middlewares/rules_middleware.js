@@ -56,7 +56,10 @@ class RulesMiddleware {
   };
 
   _fetch_rules = async () => {
-    this.active_rules = await this.rulesHelper.get_rules(true, this.request_data?.request_headers || {});
+    this.active_rules = await this.rulesHelper.get_rules(
+      true,
+      this.request_data?.request_headers || {}
+    );
   };
 
   /*
@@ -78,9 +81,8 @@ class RulesMiddleware {
 
   _update_action_result_objs = (action_result_objs = []) => {
     if (action_result_objs) {
-      this.action_result_objs = this.action_result_objs.concat(
-        action_result_objs
-      );
+      this.action_result_objs =
+        this.action_result_objs.concat(action_result_objs);
     }
   };
 
@@ -94,13 +96,11 @@ class RulesMiddleware {
 
     this.on_request_actions = this._process_rules();
 
-    const {
-      action_result_objs,
-      continue_request,
-    } = await this.rule_action_processor.process_actions(
-      this.on_request_actions,
-      ctx
-    );
+    const { action_result_objs, continue_request } =
+      await this.rule_action_processor.process_actions(
+        this.on_request_actions,
+        ctx
+      );
     this._update_action_result_objs(action_result_objs);
     return { action_result_objs, continue_request };
   };
@@ -114,13 +114,26 @@ class RulesMiddleware {
     this._update_request_data({ request_body: ctx.rq.get_json_request_body() });
     this.on_response_actions = this._process_rules(true);
 
-    const {
-      action_result_objs,
-      continue_request,
-    } = await this.rule_action_processor.process_actions(
-      this.on_response_actions,
-      ctx
-    );
+    const { action_result_objs, continue_request } =
+      await this.rule_action_processor.process_actions(
+        this.on_response_actions,
+        ctx
+      );
+
+    this._update_action_result_objs(action_result_objs);
+    return { action_result_objs, continue_request };
+  };
+
+  on_request_end = async (ctx) => {
+    if (!this.is_active) {
+      return [];
+    }
+
+    const { action_result_objs, continue_request } =
+      await this.rule_action_processor.process_actions(
+        this.on_request_actions,
+        ctx
+      );
 
     this._update_action_result_objs(action_result_objs);
     return { action_result_objs, continue_request };
@@ -131,13 +144,11 @@ class RulesMiddleware {
       return [];
     }
 
-    const {
-      action_result_objs,
-      continue_request,
-    } = await this.rule_action_processor.process_actions(
-      this.on_response_actions,
-      ctx
-    );
+    const { action_result_objs, continue_request } =
+      await this.rule_action_processor.process_actions(
+        this.on_response_actions,
+        ctx
+      );
 
     this._update_action_result_objs(action_result_objs);
     return { action_result_objs, continue_request };

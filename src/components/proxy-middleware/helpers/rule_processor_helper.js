@@ -21,9 +21,6 @@ class RuleProcessorHelper {
   process_rules = (rules, is_response = false) => {
     const rule_actions = rules.map((rule) => {
       let rule_action = this.process_rule(rule, is_response);
-      // console.log("Rule Action");
-      // console.log(rule);
-      // console.log(rule_action);
       return rule_action;
     });
     return rule_actions;
@@ -42,6 +39,13 @@ class RuleProcessorHelper {
       case GLOBAL_CONSTANTS.RULE_TYPES.SCRIPT:
       case GLOBAL_CONSTANTS.RULE_TYPES.DELAY:
         rule_action = this.process_url_modification_rule(rule_processor, rule);
+        break;
+
+      case GLOBAL_CONSTANTS.RULE_TYPES.REQUEST:
+        rule_action = this.process_request_modification_rule(
+          rule_processor,
+          rule
+        );
         break;
 
       case GLOBAL_CONSTANTS.RULE_TYPES.RESPONSE:
@@ -97,6 +101,23 @@ class RuleProcessorHelper {
     return rule_action;
   };
 
+  process_request_modification_rule = (rule_processor, rule) => {
+    let requestData = {};
+
+    if (this.request_data.method == "POST") {
+      requestData = this.request_data.request_body;
+    } else {
+      requestData = this.request_data.query_params;
+    }
+
+    const rule_action = rule_processor.process({
+      rule,
+      requestURL: this.request_data.request_url,
+      details: { requestData },
+    });
+    return rule_action;
+  };
+
   process_response_modification_rule = (rule_processor, rule) => {
     let requestData = {};
 
@@ -122,14 +143,13 @@ class RuleProcessorHelper {
       originalRequestHeadersObject
     );
     //  [{name:"header1", value:"val1"},{name:"header2", value:"val2"}]
-    const originalRequestHeadersObjectKeysValuePairs = originalRequestHeadersObjectKeys.map(
-      (key) => {
+    const originalRequestHeadersObjectKeysValuePairs =
+      originalRequestHeadersObjectKeys.map((key) => {
         return {
           name: key,
           value: originalRequestHeadersObject[key],
         };
-      }
-    );
+      });
 
     const getRequestOrigin = () => {
       if (originalRequestHeadersObject["Origin"])
@@ -163,19 +183,18 @@ class RuleProcessorHelper {
       originalResponseHeadersObject
     );
     //  [{name:"header1", value:"val1"},{name:"header2", value:"val2"}]
-    const originalResponseHeadersObjectKeysValuePairs = originalResponseHeadersObjectKeys.map(
-      (key) => {
+    const originalResponseHeadersObjectKeysValuePairs =
+      originalResponseHeadersObjectKeys.map((key) => {
         return {
           name: key,
           value: originalResponseHeadersObject[key],
         };
-      }
-    );
+      });
 
     const getRequestOrigin = () => {
       // array [{ name: header_name,value: header_val }] -> {headerName1:"value1",headerName2 :"value2"}
-      const originalRequestHeadersConvertedObject = this.request_data
-        .request_headers;
+      const originalRequestHeadersConvertedObject =
+        this.request_data.request_headers;
 
       if (originalRequestHeadersConvertedObject["Origin"])
         return originalRequestHeadersConvertedObject["Origin"];
@@ -210,14 +229,13 @@ class RuleProcessorHelper {
       originalRequestHeadersObject
     );
     //  [{name:"header1", value:"val1"},{name:"header2", value:"val2"}]
-    const originalRequestHeadersObjectKeysValuePairs = originalRequestHeadersObjectKeys.map(
-      (key) => {
+    const originalRequestHeadersObjectKeysValuePairs =
+      originalRequestHeadersObjectKeys.map((key) => {
         return {
           name: key,
           value: originalRequestHeadersObject[key],
         };
-      }
-    );
+      });
 
     const rule_action = rule_processor.process({
       requestURL: this.request_data.request_url,

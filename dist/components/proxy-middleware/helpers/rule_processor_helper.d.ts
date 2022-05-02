@@ -9,6 +9,7 @@ declare class RuleProcessorHelper {
     process_rule: (rule: any, is_response?: boolean) => any;
     add_rule_details_to_action: (rule_action: any, rule: any) => any;
     process_url_modification_rule: (rule_processor: any, rule: any) => any;
+    process_request_modification_rule: (rule_processor: any, rule: any) => any;
     process_response_modification_rule: (rule_processor: any, rule: any) => any;
     process_request_headers_modification_rule: (rule_processor: any, rule: any) => any;
     process_response_headers_modification_rule: (rule_processor: any, rule: any) => any;

@@ -6,6 +6,7 @@ export const RULE_ACTION = {
   INSERT: "insert",
   DELAY: "add_delay",
   MODIFY_RESPONSE: "modify_response",
+  MODIFY_REQUEST: "modify_request",
 };
 
 export const RQ_INTERCEPTED_CONTENT_TYPES = [

@@ -19,6 +19,7 @@ const modify_user_agent_processor_1 = __importDefault(require("./processors/modi
 const delay_processor_1 = __importDefault(require("./processors/delay_processor"));
 const block_processor_1 = __importDefault(require("./processors/block_processor"));
 const modify_response_processor_1 = __importDefault(require("./processors/modify_response_processor"));
+const modify_request_processor_1 = __importDefault(require("./processors/modify_request_processor"));
 const insert_processor_1 = __importDefault(require("./processors/insert_processor"));
 const utils_1 = require("./utils");
 class RuleActionProcessor {
@@ -81,6 +82,9 @@ class RuleActionProcessor {
                     break;
                 case constants_1.RULE_ACTION.BLOCK:
                     action_result = (0, block_processor_1.default)(rule_action, ctx);
+                    break;
+                case constants_1.RULE_ACTION.MODIFY_REQUEST:
+                    action_result = (0, modify_request_processor_1.default)(rule_action, ctx);
                     break;
                 case constants_1.RULE_ACTION.MODIFY_RESPONSE:
                     action_result = (0, modify_response_processor_1.default)(rule_action, ctx);

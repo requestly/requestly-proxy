@@ -100,16 +100,23 @@ class ProxyMiddlewareManager {
                         const contentTypeHeader = (0, proxy_ctx_helper_1.getRequestContentTypeHeader)(ctx);
                         const contentType = (0, http_helpers_1.getContentType)(contentTypeHeader);
                         const parsedBody = (0, http_helpers_1.bodyParser)(contentTypeHeader, body);
-                        let final_body = parsedBody || body.toString("utf8");
-                        ctx.rq.set_original_request({ body: final_body });
-                        ctx.proxyToServerRequest.write(final_body);
-                        ctx.rq.set_final_request({ body: final_body });
+                        // Request body before any modifications
+                        let pre_final_body = parsedBody || body.toString("utf8");
+                        ctx.rq.set_original_request({ body: pre_final_body });
+                        ctx.rq_request_body = pre_final_body;
+                        if (constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
+                            // Do modifications, if any
+                            const { action_result_objs, continue_request } = yield rules_middleware.on_request_end(ctx);
+                        }
+                        // Use the updated request
+                        ctx.proxyToServerRequest.write(ctx.rq_request_body);
+                        ctx.rq.set_final_request({ body: ctx.rq_request_body });
                         return callback();
                     });
                 });
                 ctx.onResponse((ctx, callback) => __awaiter(this, void 0, void 0, function* () {
                     ctx.rq.set_original_response((0, proxy_ctx_helper_1.get_response_options)(ctx));
-                    const { action_result_objs, continue_request: continue_response, } = yield rules_middleware.on_response(ctx);
+                    const { action_result_objs, continue_request: continue_response } = yield rules_middleware.on_response(ctx);
                     if (continue_response) {
                         return callback();
                     }
@@ -135,7 +142,7 @@ class ProxyMiddlewareManager {
                             ctx.rq.set_original_response({ body: parsedBody });
                             // Body and status code before any modifications
                             ctx.rq_response_body = parsedBody;
-                            const { action_result_objs, continue_request, } = yield rules_middleware.on_response_end(ctx);
+                            const { action_result_objs, continue_request } = yield rules_middleware.on_response_end(ctx);
                             // ctx.rq_response_body, ctx.rq_response_status_code after modifications
                             // TODO: @sahil to investigate why this is need
                             // Remove some conflicting headers like content-length, if any
@@ -148,7 +155,9 @@ class ProxyMiddlewareManager {
                         return callback();
                     });
                 });
-                const { action_result_objs, continue_request, } = yield rules_middleware.on_request(ctx);
+                // Remove headers that may conflict
+                delete (0, proxy_ctx_helper_1.getRequestHeaders)(ctx)["content-length"];
+                const { action_result_objs, continue_request } = yield rules_middleware.on_request(ctx);
                 ctx.rq.set_final_request((0, proxy_ctx_helper_1.get_request_options)(ctx));
                 // TODO: Removing this log for now. Will add this when support is added for upsert in firebase logs.
                 logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs);

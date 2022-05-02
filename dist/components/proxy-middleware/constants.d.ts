@@ -6,5 +6,6 @@ export namespace RULE_ACTION {
     const INSERT: string;
     const DELAY: string;
     const MODIFY_RESPONSE: string;
+    const MODIFY_REQUEST: string;
 }
 export const RQ_INTERCEPTED_CONTENT_TYPES: string[];

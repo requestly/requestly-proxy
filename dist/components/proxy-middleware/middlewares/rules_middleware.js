@@ -54,7 +54,8 @@ class RulesMiddleware {
         };
         this._update_action_result_objs = (action_result_objs = []) => {
             if (action_result_objs) {
-                this.action_result_objs = this.action_result_objs.concat(action_result_objs);
+                this.action_result_objs =
+                    this.action_result_objs.concat(action_result_objs);
             }
         };
         this.on_request = (ctx) => __awaiter(this, void 0, void 0, function* () {
@@ -64,7 +65,7 @@ class RulesMiddleware {
             // TODO: Remove this. Hack to fix rule not fetching first time.
             yield this._fetch_rules();
             this.on_request_actions = this._process_rules();
-            const { action_result_objs, continue_request, } = yield this.rule_action_processor.process_actions(this.on_request_actions, ctx);
+            const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_request_actions, ctx);
             this._update_action_result_objs(action_result_objs);
             return { action_result_objs, continue_request };
         });
@@ -75,7 +76,15 @@ class RulesMiddleware {
             this._init_response_data(ctx);
             this._update_request_data({ request_body: ctx.rq.get_json_request_body() });
             this.on_response_actions = this._process_rules(true);
-            const { action_result_objs, continue_request, } = yield this.rule_action_processor.process_actions(this.on_response_actions, ctx);
+            const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_response_actions, ctx);
+            this._update_action_result_objs(action_result_objs);
+            return { action_result_objs, continue_request };
+        });
+        this.on_request_end = (ctx) => __awaiter(this, void 0, void 0, function* () {
+            if (!this.is_active) {
+                return [];
+            }
+            const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_request_actions, ctx);
             this._update_action_result_objs(action_result_objs);
             return { action_result_objs, continue_request };
         });
@@ -83,7 +92,7 @@ class RulesMiddleware {
             if (!this.is_active) {
                 return [];
             }
-            const { action_result_objs, continue_request, } = yield this.rule_action_processor.process_actions(this.on_response_actions, ctx);
+            const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_response_actions, ctx);
             this._update_action_result_objs(action_result_objs);
             return { action_result_objs, continue_request };
         });

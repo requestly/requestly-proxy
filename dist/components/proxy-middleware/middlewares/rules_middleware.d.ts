@@ -27,6 +27,10 @@ declare class RulesMiddleware {
         action_result_objs: any[];
         continue_request: boolean;
     }>;
+    on_request_end: (ctx: any) => Promise<any[] | {
+        action_result_objs: any[];
+        continue_request: boolean;
+    }>;
     on_response_end: (ctx: any) => Promise<any[] | {
         action_result_objs: any[];
         continue_request: boolean;

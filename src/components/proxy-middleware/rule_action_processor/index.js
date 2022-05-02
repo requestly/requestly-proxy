@@ -6,6 +6,7 @@ import process_modify_user_agent_action from "./processors/modify_user_agent_pro
 import process_delay_action from "./processors/delay_processor";
 import process_block_action from "./processors/block_processor";
 import process_modify_response_action from "./processors/modify_response_processor";
+import process_modify_request_action from "./processors/modify_request_processor";
 import process_insert_action from "./processors/insert_processor";
 import { build_action_processor_response } from "./utils";
 
@@ -81,6 +82,9 @@ class RuleActionProcessor {
         break;
       case RULE_ACTION.BLOCK:
         action_result = process_block_action(rule_action, ctx);
+        break;
+      case RULE_ACTION.MODIFY_REQUEST:
+        action_result = process_modify_request_action(rule_action, ctx);
         break;
       case RULE_ACTION.MODIFY_RESPONSE:
         action_result = process_modify_response_action(rule_action, ctx);

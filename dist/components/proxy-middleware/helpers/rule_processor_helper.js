@@ -13,9 +13,6 @@ class RuleProcessorHelper {
         this.process_rules = (rules, is_response = false) => {
             const rule_actions = rules.map((rule) => {
                 let rule_action = this.process_rule(rule, is_response);
-                // console.log("Rule Action");
-                // console.log(rule);
-                // console.log(rule_action);
                 return rule_action;
             });
             return rule_actions;
@@ -32,6 +29,9 @@ class RuleProcessorHelper {
                 case requestly_master_2.CONSTANTS.RULE_TYPES.SCRIPT:
                 case requestly_master_2.CONSTANTS.RULE_TYPES.DELAY:
                     rule_action = this.process_url_modification_rule(rule_processor, rule);
+                    break;
+                case requestly_master_2.CONSTANTS.RULE_TYPES.REQUEST:
+                    rule_action = this.process_request_modification_rule(rule_processor, rule);
                     break;
                 case requestly_master_2.CONSTANTS.RULE_TYPES.RESPONSE:
                     rule_action = this.process_response_modification_rule(rule_processor, rule);
@@ -64,6 +64,21 @@ class RuleProcessorHelper {
             const rule_action = rule_processor.process({
                 rule,
                 requestURL: this.request_data.request_url,
+            });
+            return rule_action;
+        };
+        this.process_request_modification_rule = (rule_processor, rule) => {
+            let requestData = {};
+            if (this.request_data.method == "POST") {
+                requestData = this.request_data.request_body;
+            }
+            else {
+                requestData = this.request_data.query_params;
+            }
+            const rule_action = rule_processor.process({
+                rule,
+                requestURL: this.request_data.request_url,
+                details: { requestData },
             });
             return rule_action;
         };
@@ -129,8 +144,7 @@ class RuleProcessorHelper {
             });
             const getRequestOrigin = () => {
                 // array [{ name: header_name,value: header_val }] -> {headerName1:"value1",headerName2 :"value2"}
-                const originalRequestHeadersConvertedObject = this.request_data
-                    .request_headers;
+                const originalRequestHeadersConvertedObject = this.request_data.request_headers;
                 if (originalRequestHeadersConvertedObject["Origin"])
                     return originalRequestHeadersConvertedObject["Origin"];
                 if (originalRequestHeadersConvertedObject["origin"])
