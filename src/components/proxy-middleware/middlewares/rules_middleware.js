@@ -111,7 +111,6 @@ class RulesMiddleware {
     }
 
     this._init_response_data(ctx);
-    this._update_request_data({ request_body: ctx.rq.get_json_request_body() });
     this.on_response_actions = this._process_rules(true);
 
     const { action_result_objs, continue_request } =
@@ -128,6 +127,7 @@ class RulesMiddleware {
     if (!this.is_active) {
       return [];
     }
+    this._update_request_data({ request_body: ctx.rq.get_json_request_body() });
 
     const { action_result_objs, continue_request } =
       await this.rule_action_processor.process_actions(
