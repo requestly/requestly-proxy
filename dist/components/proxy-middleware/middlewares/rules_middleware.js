@@ -74,7 +74,6 @@ class RulesMiddleware {
                 return [];
             }
             this._init_response_data(ctx);
-            this._update_request_data({ request_body: ctx.rq.get_json_request_body() });
             this.on_response_actions = this._process_rules(true);
             const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_response_actions, ctx);
             this._update_action_result_objs(action_result_objs);
@@ -84,6 +83,7 @@ class RulesMiddleware {
             if (!this.is_active) {
                 return [];
             }
+            this._update_request_data({ request_body: ctx.rq.get_json_request_body() });
             const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_request_actions, ctx);
             this._update_action_result_objs(action_result_objs);
             return { action_result_objs, continue_request };

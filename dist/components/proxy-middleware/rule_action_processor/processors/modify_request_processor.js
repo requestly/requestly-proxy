@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const proxy_1 = require("../../../../../renderer/rq-proxy/lib/proxy");
+const proxy_1 = require("../../../../lib/proxy");
 const requestly_master_1 = require("requestly-master");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
