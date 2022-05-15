@@ -2,12 +2,33 @@ import charset from "charset";
 import mime from "mime-types";
 
 export const bodyParser = (contentTypeHeader, buffer) => {
-  const encoding =
+  let inherentEncoding =
     charset(contentTypeHeader) || mime.charset(contentTypeHeader);
   let str_buffer = null;
+  const isEncodingValid = (givenEncoding) =>
+    givenEncoding && Buffer.isEncoding(givenEncoding);
+  const setBufferString = (givenEncoding) =>
+    (str_buffer = buffer.toString(givenEncoding));
 
-  if (encoding && Buffer.isEncoding(encoding)) {
-    str_buffer = buffer.toString(encoding);
+  if (isEncodingValid(inherentEncoding)) {
+    setBufferString(inherentEncoding);
+  } else {
+    const mostCommonEncodings = [
+      "utf8", // utf8 can also decode ASCII to ISO-8859-1, which is also very widely used
+      "utf16le",
+      "ascii",
+      "ucs2",
+      "base64",
+      "latin1",
+      "binary",
+      "hex",
+    ];
+    mostCommonEncodings.every((newPossibleEncoding) => {
+      if (isEncodingValid(newPossibleEncoding)) {
+        setBufferString(newPossibleEncoding);
+        return false;
+      }
+    });
   }
 
   return str_buffer;

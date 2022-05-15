@@ -150,7 +150,7 @@ class ProxyMiddlewareManager {
         ctx.rq.set_original_request({ body: pre_final_body });
         ctx.rq_request_body = pre_final_body;
 
-        if (RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
+        if (parsedBody && RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
           // Do modifications, if any
           const { action_result_objs, continue_request } =
             await rules_middleware.on_request_end(ctx);
