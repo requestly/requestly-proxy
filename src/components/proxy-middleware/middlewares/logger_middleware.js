@@ -27,7 +27,7 @@ class LoggerMiddleware {
     return requestCurl;
   };
 
-  send_network_log = (ctx, action_result_objs = []) => {
+  send_network_log = (ctx, action_result_objs = [],requestState="") => {
     // let query_params_string;
     // if (ctx.rq.final_request.query_params) {
     //   query_params_string = JSON.stringify(ctx.rq.final_request.query_params);
@@ -68,10 +68,10 @@ class LoggerMiddleware {
     // };
     // ipcRenderer.send("log-network-request", log);
     // TODO: Sending log for now. Ideally this should be har object
-    this.loggerService.addLog(this.createLog(ctx, action_result_objs), ctx.rq.final_request.headers || {})
+    this.loggerService.addLog(this.createLog(ctx, action_result_objs, requestState), ctx.rq.final_request.headers || {})
   };
 
-  createLog = (ctx, action_result_objs = []) => {
+  createLog = (ctx, action_result_objs = [], requestState="") => {
     const protocol = ctx.isSSL ? "https" : "http";
     const rqLog = {
       id: ctx.uuid,
@@ -89,6 +89,7 @@ class LoggerMiddleware {
       ),
       requestShellCurl: this.generate_curl_from_har(ctx?.rq?.final_request?.requestHarObject), // TODO: Move this to client side
       actions: get_success_actions_from_action_results(action_result_objs),
+      requestState
     }
     return rqLog;
   }

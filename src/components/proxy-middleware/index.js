@@ -219,7 +219,8 @@ class ProxyMiddlewareManager {
         });
         logger_middleware.send_network_log(
           ctx,
-          rules_middleware.action_result_objs
+          rules_middleware.action_result_objs,
+          "Complete"
         );
 
         return callback();
@@ -235,7 +236,8 @@ class ProxyMiddlewareManager {
       // TODO: Removing this log for now. Will add this when support is added for upsert in firebase logs.
       logger_middleware.send_network_log(
         ctx,
-        rules_middleware.action_result_objs
+        rules_middleware.action_result_objs,
+        "Loading"
       );
       //logger
       if (continue_request) {
