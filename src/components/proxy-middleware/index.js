@@ -20,6 +20,7 @@ import SslCertMiddleware from "./middlewares/ssl_cert_middleware";
 import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "./constants";
+import { CONSTANTS as GLOBAL_CONSTANTS } from "requestly-master";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 
@@ -219,7 +220,8 @@ class ProxyMiddlewareManager {
         });
         logger_middleware.send_network_log(
           ctx,
-          rules_middleware.action_result_objs
+          rules_middleware.action_result_objs,
+          GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
         );
 
         return callback();
@@ -235,7 +237,8 @@ class ProxyMiddlewareManager {
       // TODO: Removing this log for now. Will add this when support is added for upsert in firebase logs.
       logger_middleware.send_network_log(
         ctx,
-        rules_middleware.action_result_objs
+        rules_middleware.action_result_objs,
+        GLOBAL_CONSTANTS.REQUEST_STATE.LOADING
       );
       //logger
       if (continue_request) {
