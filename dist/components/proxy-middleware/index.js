@@ -24,6 +24,7 @@ const ssl_cert_middleware_1 = __importDefault(require("./middlewares/ssl_cert_mi
 const ctx_rq_namespace_1 = __importDefault(require("./helpers/ctx_rq_namespace"));
 const http_helpers_1 = require("./helpers/http_helpers");
 const constants_1 = require("./constants");
+const requestly_master_1 = require("requestly-master");
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 exports.MIDDLEWARE_TYPE = {
@@ -151,7 +152,7 @@ class ProxyMiddlewareManager {
                         ctx.proxyToClientResponse.writeHead(ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx), (0, proxy_ctx_helper_1.getResponseHeaders)(ctx));
                         ctx.proxyToClientResponse.write(ctx.rq_response_body);
                         ctx.rq.set_final_response(Object.assign(Object.assign({}, (0, proxy_ctx_helper_1.get_response_options)(ctx)), { status_code: ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx), body: ctx.rq_response_body }));
-                        logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs);
+                        logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_master_1.CONSTANTS.REQUEST_STATE.COMPLETE);
                         return callback();
                     });
                 });
@@ -160,7 +161,7 @@ class ProxyMiddlewareManager {
                 const { action_result_objs, continue_request } = yield rules_middleware.on_request(ctx);
                 ctx.rq.set_final_request((0, proxy_ctx_helper_1.get_request_options)(ctx));
                 // TODO: Removing this log for now. Will add this when support is added for upsert in firebase logs.
-                logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs);
+                logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_master_1.CONSTANTS.REQUEST_STATE.LOADING);
                 //logger
                 if (continue_request) {
                     return callback();

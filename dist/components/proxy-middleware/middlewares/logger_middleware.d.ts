@@ -4,8 +4,8 @@ declare class LoggerMiddleware {
     is_active: any;
     loggerService: any;
     generate_curl_from_har: (requestHarObject: any) => string;
-    send_network_log: (ctx: any, action_result_objs?: any[]) => void;
-    createLog: (ctx: any, action_result_objs?: any[]) => {
+    send_network_log: (ctx: any, action_result_objs?: any[], requestState?: string) => void;
+    createLog: (ctx: any, action_result_objs?: any[], requestState?: string) => {
         id: any;
         timestamp: number;
         finalHar: {
@@ -61,5 +61,6 @@ declare class LoggerMiddleware {
         };
         requestShellCurl: string;
         actions: any[];
+        requestState: string;
     };
 }
