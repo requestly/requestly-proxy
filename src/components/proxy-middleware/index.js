@@ -20,6 +20,7 @@ import SslCertMiddleware from "./middlewares/ssl_cert_middleware";
 import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "./constants";
+import { CONSTANTS as GLOBAL_CONSTANTS } from "requestly-master";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 
@@ -220,7 +221,7 @@ class ProxyMiddlewareManager {
         logger_middleware.send_network_log(
           ctx,
           rules_middleware.action_result_objs,
-          "Complete"
+          GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
         );
 
         return callback();
@@ -237,7 +238,7 @@ class ProxyMiddlewareManager {
       logger_middleware.send_network_log(
         ctx,
         rules_middleware.action_result_objs,
-        "Loading"
+        GLOBAL_CONSTANTS.REQUEST_STATE.LOADING
       );
       //logger
       if (continue_request) {
