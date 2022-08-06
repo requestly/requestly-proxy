@@ -20,7 +20,7 @@ import SslCertMiddleware from "./middlewares/ssl_cert_middleware";
 import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "./constants";
-import { CONSTANTS as GLOBAL_CONSTANTS } from "requestly-master";
+import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 

@@ -3,7 +3,7 @@ import { PROXY_HANDLER_TYPE } from "../../../../lib/proxy";
 import {
   UTILS as GLOBAL_UTILS,
   CONSTANTS as GLOBAL_CONSTANTS,
-} from "requestly-master";
+} from "@requestly/requestly-core";
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
 import fs from "fs";

@@ -1,8 +1,8 @@
-import { RULE_PROCESSOR } from "requestly-master";
+import { RULE_PROCESSOR } from "@requestly/requestly-core";
 import {
   CONSTANTS as GLOBAL_CONSTANTS,
   UTILS as GLOBAL_UTILS,
-} from "requestly-master";
+} from "@requestly/requestly-core";
 
 class RuleProcessorHelper {
   constructor(request_data = null, response_data = null) {
