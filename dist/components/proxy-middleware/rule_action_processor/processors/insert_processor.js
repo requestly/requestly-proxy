@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const proxy_1 = require("../../../../lib/proxy");
-const requestly_master_1 = require("requestly-master");
+const requestly_core_1 = require("@requestly/requestly-core");
 const response_helper_1 = require("../../helpers/response_helper");
 const utils_1 = require("../utils");
 const process_insert_action = (action, ctx) => {
@@ -47,10 +47,10 @@ const handleCSSScripts = (cssScripts, incomingDOM) => {
  * @returns {string} HTML Content
  */
 const includeCSS = (script, incomingDOM) => {
-    if (script.type === requestly_master_1.CONSTANTS.SCRIPT_TYPES.URL) {
+    if (script.type === requestly_core_1.CONSTANTS.SCRIPT_TYPES.URL) {
         addRemoteCSS(script.value, incomingDOM);
     }
-    else if (script.type === requestly_master_1.CONSTANTS.SCRIPT_TYPES.CODE) {
+    else if (script.type === requestly_core_1.CONSTANTS.SCRIPT_TYPES.CODE) {
         embedCSS(script.value, incomingDOM);
     }
 };
@@ -63,7 +63,7 @@ const addRemoteCSS = (src, incomingDOM) => {
     (incomingDOM.head || incomingDOM.documentElement).appendChild(link);
 };
 const getScriptClassAttribute = () => {
-    return requestly_master_1.CONSTANTS.PUBLIC_NAMESPACE + "SCRIPT";
+    return requestly_core_1.CONSTANTS.PUBLIC_NAMESPACE + "SCRIPT";
 };
 const embedCSS = (css, incomingDOM) => {
     var style = incomingDOM.createElement("style");
@@ -81,7 +81,7 @@ const addLibraries = (libraries, indexArg, incomingDOM) => {
         return;
     }
     var libraryKey = libraries[index];
-    var library = requestly_master_1.CONSTANTS.SCRIPT_LIBRARIES[libraryKey];
+    var library = requestly_core_1.CONSTANTS.SCRIPT_LIBRARIES[libraryKey];
     var addNextLibraries = () => {
         addLibraries(libraries, index + 1, incomingDOM);
     };
@@ -109,7 +109,7 @@ const handleJSScripts = (jsScripts, incomingDOM) => {
     var prePageLoadScripts = [];
     var postPageLoadScripts = [];
     jsScripts.forEach((script) => {
-        if (script.loadTime === requestly_master_1.CONSTANTS.SCRIPT_LOAD_TIME.BEFORE_PAGE_LOAD) {
+        if (script.loadTime === requestly_core_1.CONSTANTS.SCRIPT_LOAD_TIME.BEFORE_PAGE_LOAD) {
             prePageLoadScripts.push(script);
         }
         else {
@@ -131,11 +131,11 @@ const includeJSScriptsInOrder = (scripts, callback, indexArg, incomingDOM) => {
     }, incomingDOM);
 };
 const includeJS = (script, callback, incomingDOM) => {
-    if (script.type === requestly_master_1.CONSTANTS.SCRIPT_TYPES.URL) {
+    if (script.type === requestly_core_1.CONSTANTS.SCRIPT_TYPES.URL) {
         addRemoteJS(script.value, callback, incomingDOM);
         return;
     }
-    if (script.type === requestly_master_1.CONSTANTS.SCRIPT_TYPES.CODE) {
+    if (script.type === requestly_core_1.CONSTANTS.SCRIPT_TYPES.CODE) {
         executeJS(script.value, null, incomingDOM);
     }
     typeof callback === "function" && callback();

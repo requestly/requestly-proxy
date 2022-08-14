@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const requestly_master_1 = require("requestly-master");
-const requestly_master_2 = require("requestly-master");
+const requestly_core_1 = require("@requestly/requestly-core");
+const requestly_core_2 = require("@requestly/requestly-core");
 class RuleProcessorHelper {
     constructor(request_data = null, response_data = null) {
         this.init_request_data = (request_data) => {
@@ -19,24 +19,24 @@ class RuleProcessorHelper {
         };
         // Dont pass ctx here. Pass only readonly params from middleware
         this.process_rule = (rule, is_response = false) => {
-            const rule_processor = requestly_master_1.RULE_PROCESSOR.getInstance(rule.ruleType);
+            const rule_processor = requestly_core_1.RULE_PROCESSOR.getInstance(rule.ruleType);
             let rule_action;
             switch (rule.ruleType) {
-                case requestly_master_2.CONSTANTS.RULE_TYPES.REDIRECT:
-                case requestly_master_2.CONSTANTS.RULE_TYPES.REPLACE:
-                case requestly_master_2.CONSTANTS.RULE_TYPES.CANCEL:
-                case requestly_master_2.CONSTANTS.RULE_TYPES.QUERYPARAM:
-                case requestly_master_2.CONSTANTS.RULE_TYPES.SCRIPT:
-                case requestly_master_2.CONSTANTS.RULE_TYPES.DELAY:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.REDIRECT:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.REPLACE:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.CANCEL:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.QUERYPARAM:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.SCRIPT:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.DELAY:
                     rule_action = this.process_url_modification_rule(rule_processor, rule);
                     break;
-                case requestly_master_2.CONSTANTS.RULE_TYPES.REQUEST:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.REQUEST:
                     rule_action = this.process_request_modification_rule(rule_processor, rule);
                     break;
-                case requestly_master_2.CONSTANTS.RULE_TYPES.RESPONSE:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.RESPONSE:
                     rule_action = this.process_response_modification_rule(rule_processor, rule);
                     break;
-                case requestly_master_2.CONSTANTS.RULE_TYPES.HEADERS:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.HEADERS:
                     if (is_response) {
                         rule_action = this.process_response_headers_modification_rule(rule_processor, rule);
                     }
@@ -44,7 +44,7 @@ class RuleProcessorHelper {
                         rule_action = this.process_request_headers_modification_rule(rule_processor, rule);
                     }
                     break;
-                case requestly_master_2.CONSTANTS.RULE_TYPES.USERAGENT:
+                case requestly_core_2.CONSTANTS.RULE_TYPES.USERAGENT:
                     rule_action = this.process_user_agent_modification_rule(rule_processor, rule);
                     break;
                 default:
@@ -123,7 +123,7 @@ class RuleProcessorHelper {
                 requestURL: this.request_data.request_url,
                 rule,
                 originalHeaders: originalRequestHeadersObjectKeysValuePairs,
-                typeOfHeaders: requestly_master_2.CONSTANTS.HEADERS_TARGET.REQUEST,
+                typeOfHeaders: requestly_core_2.CONSTANTS.HEADERS_TARGET.REQUEST,
                 payload: {
                     requestOrigin: getRequestOrigin(),
                 },
@@ -158,7 +158,7 @@ class RuleProcessorHelper {
                 requestURL: this.request_data.request_url,
                 rule,
                 originalHeaders: originalResponseHeadersObjectKeysValuePairs,
-                typeOfHeaders: requestly_master_2.CONSTANTS.HEADERS_TARGET.RESPONSE,
+                typeOfHeaders: requestly_core_2.CONSTANTS.HEADERS_TARGET.RESPONSE,
                 payload: {
                     requestOrigin: getRequestOrigin(),
                 },

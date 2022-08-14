@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const proxy_1 = require("../../../../lib/proxy");
-const requestly_master_1 = require("requestly-master");
+const requestly_core_1 = require("@requestly/requestly-core");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
 const { types } = require("util");
@@ -20,7 +20,7 @@ const process_modify_request_action = (action, ctx) => {
         return (0, utils_1.build_action_processor_response)(action, false);
     }
     if (action.requestType &&
-        action.requestType === requestly_master_1.CONSTANTS.REQUEST_BODY_TYPES.CODE) {
+        action.requestType === requestly_core_1.CONSTANTS.REQUEST_BODY_TYPES.CODE) {
         modify_request_using_code(action, ctx);
         return (0, utils_1.build_action_processor_response)(action, true);
     }
@@ -36,7 +36,7 @@ const modify_request = (ctx, new_req) => {
 const modify_request_using_code = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
     let userFunction = null;
     try {
-        userFunction = requestly_master_1.UTILS.GET_FUNCTION_FROM_STRING(action.request);
+        userFunction = requestly_core_1.UTILS.GET_FUNCTION_FROM_STRING(action.request);
     }
     catch (error) {
         // User has provided an invalid function
