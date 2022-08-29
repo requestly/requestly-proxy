@@ -48,8 +48,11 @@ class RuleActionProcessor {
                     return; // No post processing
                 const status_code = action_result.post_process_data.status_code || 200;
                 const headers = action_result.post_process_data.headers || {};
-                const body = action_result.post_process_data.body || null;
+                let body = action_result.post_process_data.body || null;
                 // console.log("Log", ctx.rq.original_request);
+                if (typeof (body) !== 'string') {
+                    body = JSON.stringify(body);
+                }
                 ctx.proxyToClientResponse.writeHead(status_code, headers).end(body);
                 ctx.rq.set_final_response({
                     status_code: status_code,
