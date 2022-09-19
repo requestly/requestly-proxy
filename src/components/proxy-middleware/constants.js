@@ -11,6 +11,7 @@ export const RULE_ACTION = {
 
 export const RQ_INTERCEPTED_CONTENT_TYPES = [
   "text/html",
+  "text/plain",
   "text/javascript",
   "application/javascript",
   "text/css",
