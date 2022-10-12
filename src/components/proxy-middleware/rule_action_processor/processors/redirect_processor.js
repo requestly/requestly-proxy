@@ -4,11 +4,15 @@ import {
   is_request_preflight,
 } from "../../helpers/proxy_ctx_helper";
 import modifiedRequestsPool from "../modified_requests_pool";
-import handleMixedResponse from "../handle_mixed_response";
+import {handleMixedResponse, handleServerSideRedirect} from "./helpers/redirectHelper";
 import {
   build_action_processor_response,
   build_post_process_data,
 } from "../utils";
+
+import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
+const {SERVER_SIDE} = GLOBAL_CONSTANTS.REDIRECT_CONSTANTS.REDIRECT_TYPE
+
 const { URL } = require("url");
 
 // adding util to get origin header for handling cors
@@ -40,27 +44,37 @@ const process_redirect_action = async (action, ctx) => {
   } else {
     modifiedRequestsPool.add(new_url);
   }
+  
+  let isResponseDataReady = false, responseData = null;
 
-  const { status: isMixedResponse, response_data } = await handleMixedResponse(
-    ctx,
-    new_url
-  );
+  if (action.redirectType == SERVER_SIDE) {
+    const { status: isServerSideRedirectPossible, response_data } = await handleServerSideRedirect(ctx,new_url);
+    if(isServerSideRedirectPossible) {
+      isResponseDataReady = true,
+      responseData = response_data
+    }
+  } else {
+    const { status: isMixedResponse, response_data } = await handleMixedResponse(ctx,new_url);
+    if(isMixedResponse) {
+      isResponseDataReady = true,
+      responseData = response_data
+    }
+  }
 
-  if (isMixedResponse) {
+  if (isResponseDataReady) {
     return build_action_processor_response(
       action,
       true,
       build_post_process_data(
-        response_data.status_code,
-        response_data.headers,
-        response_data.body
+        responseData.status_code,
+        responseData.headers,
+        responseData.body
       )
     );
   }
 
   // If this is a pre-flight request, don't redirect it
   if (is_request_preflight(ctx)) return true;
-
   return build_action_processor_response(
     action,
     true,

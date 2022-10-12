@@ -1,5 +1,5 @@
 import { RULE_ACTION } from "../constants";
-
+console.log("new requestly-proxy found")
 import process_redirect_action from "./processors/redirect_processor";
 import process_modify_header_action from "./processors/modify_header_processor";
 import process_modify_user_agent_action from "./processors/modify_user_agent_processor";
@@ -23,6 +23,9 @@ class RuleActionProcessor {
     const action_result_objs = await Promise.all(
       rule_actions.map(async (action) => {
         let action_result_obj = await this.process_action(action, ctx);
+        if(action.action === "redirect"){
+          console.log("result", action_result_obj)
+        }
         return action_result_obj;
       })
     );
@@ -55,9 +58,9 @@ class RuleActionProcessor {
         headers: headers,
         body: body,
       });
+      console.log("action result that changed continue_request", action_result);
       continue_request = false;
     });
-
     return continue_request;
   };
 

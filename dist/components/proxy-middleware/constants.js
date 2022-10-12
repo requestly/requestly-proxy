@@ -13,6 +13,7 @@ exports.RULE_ACTION = {
 };
 exports.RQ_INTERCEPTED_CONTENT_TYPES = [
     "text/html",
+    "text/plain",
     "text/javascript",
     "application/javascript",
     "text/css",

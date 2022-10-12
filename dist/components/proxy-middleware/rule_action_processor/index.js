@@ -13,6 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../constants");
+console.log("new requestly-proxy found");
 const redirect_processor_1 = __importDefault(require("./processors/redirect_processor"));
 const modify_header_processor_1 = __importDefault(require("./processors/modify_header_processor"));
 const modify_user_agent_processor_1 = __importDefault(require("./processors/modify_user_agent_processor"));
@@ -33,6 +34,9 @@ class RuleActionProcessor {
             */
             const action_result_objs = yield Promise.all(rule_actions.map((action) => __awaiter(this, void 0, void 0, function* () {
                 let action_result_obj = yield this.process_action(action, ctx);
+                if (action.action === "redirect") {
+                    console.log("result", action_result_obj);
+                }
                 return action_result_obj;
             })));
             let continue_request = true;
@@ -59,6 +63,7 @@ class RuleActionProcessor {
                     headers: headers,
                     body: body,
                 });
+                console.log("action result that changed continue_request", action_result);
                 continue_request = false;
             });
             return continue_request;

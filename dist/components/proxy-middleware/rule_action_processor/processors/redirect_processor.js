@@ -15,8 +15,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const proxy_1 = require("../../../../lib/proxy");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const modified_requests_pool_1 = __importDefault(require("../modified_requests_pool"));
-const handle_mixed_response_1 = __importDefault(require("../handle_mixed_response"));
+const redirectHelper_1 = require("./helpers/redirectHelper");
 const utils_1 = require("../utils");
+const requestly_core_1 = require("@requestly/requestly-core");
+const { SERVER_SIDE } = requestly_core_1.CONSTANTS.REDIRECT_CONSTANTS.REDIRECT_TYPE;
 const { URL } = require("url");
 // adding util to get origin header for handling cors
 const getRequestOrigin = (ctx) => {
@@ -41,9 +43,23 @@ const process_redirect_action = (action, ctx) => __awaiter(void 0, void 0, void 
     else {
         modified_requests_pool_1.default.add(new_url);
     }
-    const { status: isMixedResponse, response_data } = yield (0, handle_mixed_response_1.default)(ctx, new_url);
-    if (isMixedResponse) {
-        return (0, utils_1.build_action_processor_response)(action, true, (0, utils_1.build_post_process_data)(response_data.status_code, response_data.headers, response_data.body));
+    let isResponseDataReady = false, responseData = null;
+    if (action.redirectType == SERVER_SIDE) {
+        const { status: isServerSideRedirectPossible, response_data } = yield (0, redirectHelper_1.handleServerSideRedirect)(ctx, new_url);
+        if (isServerSideRedirectPossible) {
+            isResponseDataReady = true,
+                responseData = response_data;
+        }
+    }
+    else {
+        const { status: isMixedResponse, response_data } = yield (0, redirectHelper_1.handleMixedResponse)(ctx, new_url);
+        if (isMixedResponse) {
+            isResponseDataReady = true,
+                responseData = response_data;
+        }
+    }
+    if (isResponseDataReady) {
+        return (0, utils_1.build_action_processor_response)(action, true, (0, utils_1.build_post_process_data)(responseData.status_code, responseData.headers, responseData.body));
     }
     // If this is a pre-flight request, don't redirect it
     if ((0, proxy_ctx_helper_1.is_request_preflight)(ctx))
