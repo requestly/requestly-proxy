@@ -10,7 +10,7 @@ const willCreateMixedResponse = (ctx , destinationUrl) => {
   const user_agent = parser(user_agent_str)?.browser?.name;
   const LOCAL_DOMAINS = ["localhost", "127.0.0.1"];
 
-  return ctx.isSSL && (
+  return ctx.isSSL && destinationUrl.includes("http") && (
     user_agent === "Safari" ||
     !LOCAL_DOMAINS.some((domain) => destinationUrl.includes(domain))
   )

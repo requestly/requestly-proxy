@@ -44,8 +44,8 @@ const process_redirect_action = async (action, ctx) => {
 
   // handle mixed content and redirect with preserve cookie
   if(shouldMakeExternalRequest(ctx, action)) {
-    const { status: wasExternalRequestSuccessfull, responseData } = await makeExternalRequest(ctx, new_url)
-    if (wasExternalRequestSuccessfull) {
+    const { status: wasExternalRequestSuccessful, responseData } = await makeExternalRequest(ctx, new_url)
+    if (wasExternalRequestSuccessful) {
       return build_action_processor_response(
         action,
         true,

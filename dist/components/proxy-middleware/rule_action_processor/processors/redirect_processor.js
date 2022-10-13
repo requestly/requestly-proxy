@@ -43,8 +43,8 @@ const process_redirect_action = (action, ctx) => __awaiter(void 0, void 0, void 
     }
     // handle mixed content and redirect with preserve cookie
     if ((0, redirectHelper_1.shouldMakeExternalRequest)(ctx, action)) {
-        const { status: wasExternalRequestSuccessfull, responseData } = yield (0, redirectHelper_1.makeExternalRequest)(ctx, new_url);
-        if (wasExternalRequestSuccessfull) {
+        const { status: wasExternalRequestSuccessful, responseData } = yield (0, redirectHelper_1.makeExternalRequest)(ctx, new_url);
+        if (wasExternalRequestSuccessful) {
             return (0, utils_1.build_action_processor_response)(action, true, (0, utils_1.build_post_process_data)(responseData.status_code, responseData.headers, responseData.body));
         }
     }

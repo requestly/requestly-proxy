@@ -1,5 +1,4 @@
 import { RULE_ACTION } from "../constants";
-console.log("new requestly-proxy found")
 import process_redirect_action from "./processors/redirect_processor";
 import process_modify_header_action from "./processors/modify_header_processor";
 import process_modify_user_agent_action from "./processors/modify_user_agent_processor";
