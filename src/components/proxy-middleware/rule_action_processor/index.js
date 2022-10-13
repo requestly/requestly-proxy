@@ -23,9 +23,6 @@ class RuleActionProcessor {
     const action_result_objs = await Promise.all(
       rule_actions.map(async (action) => {
         let action_result_obj = await this.process_action(action, ctx);
-        if(action.action === "redirect"){
-          console.log("result", action_result_obj)
-        }
         return action_result_obj;
       })
     );
@@ -58,7 +55,6 @@ class RuleActionProcessor {
         headers: headers,
         body: body,
       });
-      console.log("action result that changed continue_request", action_result);
       continue_request = false;
     });
     return continue_request;

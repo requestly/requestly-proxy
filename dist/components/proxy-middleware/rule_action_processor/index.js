@@ -34,9 +34,6 @@ class RuleActionProcessor {
             */
             const action_result_objs = yield Promise.all(rule_actions.map((action) => __awaiter(this, void 0, void 0, function* () {
                 let action_result_obj = yield this.process_action(action, ctx);
-                if (action.action === "redirect") {
-                    console.log("result", action_result_obj);
-                }
                 return action_result_obj;
             })));
             let continue_request = true;
@@ -63,7 +60,6 @@ class RuleActionProcessor {
                     headers: headers,
                     body: body,
                 });
-                console.log("action result that changed continue_request", action_result);
                 continue_request = false;
             });
             return continue_request;

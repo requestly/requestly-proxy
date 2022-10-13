@@ -4,14 +4,11 @@ import {
   is_request_preflight,
 } from "../../helpers/proxy_ctx_helper";
 import modifiedRequestsPool from "../modified_requests_pool";
-import {handleMixedResponse, handleServerSideRedirect} from "./helpers/redirectHelper";
+import {makeExternalRequest, shouldMakeExternalRequest} from "../../helpers/redirectHelper";
 import {
   build_action_processor_response,
   build_post_process_data,
 } from "../utils";
-
-import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
-const {SERVER_SIDE} = GLOBAL_CONSTANTS.REDIRECT_CONSTANTS.REDIRECT_TYPE
 
 const { URL } = require("url");
 
@@ -44,33 +41,21 @@ const process_redirect_action = async (action, ctx) => {
   } else {
     modifiedRequestsPool.add(new_url);
   }
-  
-  let isResponseDataReady = false, responseData = null;
 
-  if (action.redirectType == SERVER_SIDE) {
-    const { status: isServerSideRedirectPossible, response_data } = await handleServerSideRedirect(ctx,new_url);
-    if(isServerSideRedirectPossible) {
-      isResponseDataReady = true,
-      responseData = response_data
+  // handle mixed content and redirect with preserve cookie
+  if(shouldMakeExternalRequest(ctx, action)) {
+    const { status: wasExternalRequestSuccessfull, responseData } = await makeExternalRequest(ctx, new_url)
+    if (wasExternalRequestSuccessfull) {
+      return build_action_processor_response(
+        action,
+        true,
+        build_post_process_data(
+          responseData.status_code,
+          responseData.headers,
+          responseData.body
+        )
+      );
     }
-  } else {
-    const { status: isMixedResponse, response_data } = await handleMixedResponse(ctx,new_url);
-    if(isMixedResponse) {
-      isResponseDataReady = true,
-      responseData = response_data
-    }
-  }
-
-  if (isResponseDataReady) {
-    return build_action_processor_response(
-      action,
-      true,
-      build_post_process_data(
-        responseData.status_code,
-        responseData.headers,
-        responseData.body
-      )
-    );
   }
 
   // If this is a pre-flight request, don't redirect it

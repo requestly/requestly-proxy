@@ -113,6 +113,10 @@ const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, v
 exports.handleMixedResponse = handleMixedResponse;
 const canMakeServerSideRedirect = (ctx, destinationUrl) => {
     // todo: no redirects for html documents
+    // content-type
+    // will be handled by mixed content case
+    if (destinationUrl.includes("http"))
+        return false;
     return true;
 };
 const handleServerSideRedirect = (ctx, destinationUrl) => __awaiter(void 0, void 0, void 0, function* () {
