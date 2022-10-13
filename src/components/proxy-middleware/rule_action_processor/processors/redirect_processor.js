@@ -4,11 +4,12 @@ import {
   is_request_preflight,
 } from "../../helpers/proxy_ctx_helper";
 import modifiedRequestsPool from "../modified_requests_pool";
-import handleMixedResponse from "../handle_mixed_response";
+import {makeExternalRequest, shouldMakeExternalRequest} from "../../helpers/redirectHelper";
 import {
   build_action_processor_response,
   build_post_process_data,
 } from "../utils";
+
 const { URL } = require("url");
 
 // adding util to get origin header for handling cors
@@ -41,26 +42,24 @@ const process_redirect_action = async (action, ctx) => {
     modifiedRequestsPool.add(new_url);
   }
 
-  const { status: isMixedResponse, response_data } = await handleMixedResponse(
-    ctx,
-    new_url
-  );
-
-  if (isMixedResponse) {
-    return build_action_processor_response(
-      action,
-      true,
-      build_post_process_data(
-        response_data.status_code,
-        response_data.headers,
-        response_data.body
-      )
-    );
+  // handle mixed content and redirect with preserve cookie
+  if(shouldMakeExternalRequest(ctx, action)) {
+    const { status: wasExternalRequestSuccessful, responseData } = await makeExternalRequest(ctx, new_url)
+    if (wasExternalRequestSuccessful) {
+      return build_action_processor_response(
+        action,
+        true,
+        build_post_process_data(
+          responseData.status_code,
+          responseData.headers,
+          responseData.body
+        )
+      );
+    }
   }
 
   // If this is a pre-flight request, don't redirect it
   if (is_request_preflight(ctx)) return true;
-
   return build_action_processor_response(
     action,
     true,
