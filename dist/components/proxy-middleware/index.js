@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MIDDLEWARE_TYPE = void 0;
 // Move Proxy code to this package
 var net = require("net");
+const http_1 = __importDefault(require("http"));
 const proxy_1 = __importDefault(require("../../lib/proxy"));
 const proxy_ctx_helper_1 = require("./helpers/proxy_ctx_helper");
 const rules_middleware_1 = __importDefault(require("./middlewares/rules_middleware"));
@@ -149,7 +150,8 @@ class ProxyMiddlewareManager {
                             // Remove some conflicting headers like content-length, if any
                             delete (0, proxy_ctx_helper_1.getResponseHeaders)(ctx)["content-length"];
                         }
-                        ctx.proxyToClientResponse.writeHead(ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx), (0, proxy_ctx_helper_1.getResponseHeaders)(ctx));
+                        const statusCode = ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx);
+                        ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], (0, proxy_ctx_helper_1.getResponseHeaders)(ctx));
                         ctx.proxyToClientResponse.write(ctx.rq_response_body);
                         ctx.rq.set_final_response(Object.assign(Object.assign({}, (0, proxy_ctx_helper_1.get_response_options)(ctx)), { status_code: ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx), body: ctx.rq_response_body }));
                         logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);

@@ -40,12 +40,11 @@ const parser = require("ua-parser-js");
 const Sentry = __importStar(require("@sentry/browser"));
 const https_1 = __importDefault(require("https"));
 const http_1 = __importDefault(require("http"));
-const willCreateMixedResponse = (ctx, destinationUrl) => {
-    var _a, _b, _c, _d;
+const willCreateMixedResponseThatCanBeHandled = (ctx, destinationUrl) => {
+    var _a, _b, _c;
     let user_agent_str = null;
     user_agent_str = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.clientToProxyRequest) === null || _a === void 0 ? void 0 : _a.headers["user-agent"];
-    console.log("handling mixed response. i got headers", (_b = ctx === null || ctx === void 0 ? void 0 : ctx.clientToProxyRequest) === null || _b === void 0 ? void 0 : _b.headers);
-    const user_agent = (_d = (_c = parser(user_agent_str)) === null || _c === void 0 ? void 0 : _c.browser) === null || _d === void 0 ? void 0 : _d.name;
+    const user_agent = (_c = (_b = parser(user_agent_str)) === null || _b === void 0 ? void 0 : _b.browser) === null || _c === void 0 ? void 0 : _c.name;
     const LOCAL_DOMAINS = ["localhost", "127.0.0.1"];
     return ctx.isSSL && destinationUrl.includes("http") && (user_agent === "Safari" ||
         !LOCAL_DOMAINS.some((domain) => destinationUrl.includes(domain)));
@@ -82,7 +81,7 @@ const canPreserveCookie = (ctx, destinationUrl) => {
 };
 const shouldMakeExternalRequest = (ctx, action) => {
     return ((action.preserveCookie && canPreserveCookie(ctx, action.url)) ||
-        willCreateMixedResponse(ctx, action.url));
+        willCreateMixedResponseThatCanBeHandled(ctx, action.url));
 };
 exports.shouldMakeExternalRequest = shouldMakeExternalRequest;
 function makeRequest(requestOptions) {
