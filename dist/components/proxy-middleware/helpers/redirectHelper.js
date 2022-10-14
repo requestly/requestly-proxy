@@ -82,7 +82,7 @@ const canPreserveCookie = (ctx, destinationUrl) => {
 };
 const shouldMakeExternalRequest = (ctx, action) => {
     return ((action.preserveCookie && canPreserveCookie(ctx, action.url)) ||
-        willCreateMixedResponse(ctx, url));
+        willCreateMixedResponse(ctx, action.url));
 };
 exports.shouldMakeExternalRequest = shouldMakeExternalRequest;
 function makeRequest(requestOptions) {
