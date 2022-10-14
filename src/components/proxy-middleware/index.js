@@ -1,6 +1,6 @@
 // Move Proxy code to this package
 var net = require("net");
-
+import http from "http"
 import Proxy from "../../lib/proxy";
 import {
   getRequestHeaders,
@@ -205,9 +205,10 @@ class ProxyMiddlewareManager {
           // Remove some conflicting headers like content-length, if any
           delete getResponseHeaders(ctx)["content-length"];
         }
-
+        const statusCode = ctx.rq_response_status_code || getResponseStatusCode(ctx);
         ctx.proxyToClientResponse.writeHead(
-          ctx.rq_response_status_code || getResponseStatusCode(ctx),
+          statusCode,
+          http.STATUS_CODES[statusCode],
           getResponseHeaders(ctx)
         );
         ctx.proxyToClientResponse.write(ctx.rq_response_body);
