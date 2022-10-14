@@ -3,10 +3,9 @@ import * as Sentry from "@sentry/browser";
 import https from "https"
 import http from "http"
 
-const willCreateMixedResponse = (ctx , destinationUrl) => {
+const willCreateMixedResponseThatCanBeHandled = (ctx , destinationUrl) => {
   let user_agent_str = null;
   user_agent_str = ctx?.clientToProxyRequest?.headers["user-agent"];
-  console.log("handling mixed response. i got headers",ctx?.clientToProxyRequest?.headers)
   const user_agent = parser(user_agent_str)?.browser?.name;
   const LOCAL_DOMAINS = ["localhost", "127.0.0.1"];
 
@@ -53,7 +52,7 @@ const canPreserveCookie = (ctx, destinationUrl) => {
 export const shouldMakeExternalRequest = (ctx, action) => {
   return (
     (action.preserveCookie && canPreserveCookie(ctx, action.url)) ||
-    willCreateMixedResponse(ctx, url)
+    willCreateMixedResponseThatCanBeHandled(ctx, action.url)
   )
 }
 
