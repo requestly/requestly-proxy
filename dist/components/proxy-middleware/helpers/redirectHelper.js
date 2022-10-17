@@ -46,7 +46,7 @@ const willCreateMixedResponseThatCanBeHandled = (ctx, destinationUrl) => {
     user_agent_str = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.clientToProxyRequest) === null || _a === void 0 ? void 0 : _a.headers["user-agent"];
     const user_agent = (_c = (_b = parser(user_agent_str)) === null || _b === void 0 ? void 0 : _b.browser) === null || _c === void 0 ? void 0 : _c.name;
     const LOCAL_DOMAINS = ["localhost", "127.0.0.1"];
-    return ctx.isSSL && destinationUrl.includes("http") && (user_agent === "Safari" ||
+    return ctx.isSSL && destinationUrl.includes("http:") && (user_agent === "Safari" ||
         !LOCAL_DOMAINS.some((domain) => destinationUrl.includes(domain)));
 };
 const canPreserveCookie = (ctx, destinationUrl) => {
