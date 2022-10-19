@@ -1,7 +1,6 @@
 const parser = require("ua-parser-js");
 import * as Sentry from "@sentry/browser";
-import https from "https"
-import http from "http"
+const needle = require("needle")
 
 const willCreateMixedResponseThatCanBeHandled = (ctx , destinationUrl) => {
   let user_agent_str = null;
@@ -57,43 +56,52 @@ export const shouldMakeExternalRequest = (ctx, action) => {
 }
 
 async function makeRequest(requestOptions) {
-  let requestAgent = http
-  if(requestOptions.url.includes("https")) requestAgent = https
-
-  requestOptions.headers["Cache-Control"] = "no-cache"
+  requestOptions.headers["cache-control"] = "no-cache"
   try { 
-    const {data, response} = await new Promise ((resolve, reject) => {
-      // `.request` wasn't working well with the provided request options
-      // node only provides wrapper for get, hence did not implement other methods
-      if(requestOptions.method === "GET") {
-        let request = requestAgent.get(requestOptions.url, requestOptions, (res) => {
-          const dataBuffers = []
-        
-          res.on('data', (buffer) => {
-            dataBuffers.push(buffer)
-          });
-        
-          res.on('end', () => {
-            resolve({data: Buffer.concat(dataBuffers).toString(), response: res})
-          });
-        })
+    if(requestOptions.method === "GET") {
+      const req = needle.get(requestOptions.url, requestOptions)
+      let dataBuffers = [];
+      req.on('readable', () => { 
+          let chunk;
+          while (chunk = req.read()) {
+            dataBuffers.push(chunk)
+          }
+        }
+      );
 
-        request.on('error', (error) => {
-          console.log("requestError", requestOptions);
-          console.error(error);
-          reject(error)
+      let respheaders, respstatus, response;
+      req.on('header', function(statusCode, headers) {
+        respheaders = headers
+        respstatus = statusCode
+      });
+
+      const data = await new Promise((resolve, reject) => {
+        req.on('done', (err, resp) => {
+            response = resp
+            if(err) reject(err)
+            if(Buffer.isBuffer(dataBuffers[0])) {
+              resolve(Buffer.concat(dataBuffers).toString())
+            } else {
+              resolve(JSON.stringify(dataBuffers[0]));
+            }
         });
-      } else {
-        // hack: to return an understandable response back to user
-        // @nsr fix: implement all other methods using some workaround of http.request bug
-        const errMsg = "Can only preserve cookies for get requests"
-        const customError = new Error(errMsg)
-        customError.response = {data: errMsg}
-        throw customError
-      }
-    })
+      });
 
-    return {success: true, response, data}
+      const responseMetadata = {
+        headers: respheaders,
+        statusCode:respstatus,
+        res: response
+      }
+      
+      return {success: true, response: responseMetadata, data}
+    } else {
+      // hack: to return an understandable response back to user
+      // @nsr: implement all other methods 
+      const errMsg = "Can only preserve cookies for get requests"
+      const customError = new Error(errMsg)
+      customError.response = {data: errMsg}
+      throw customError
+    }
   } catch (error) {
     Sentry.captureException(error);
     console.error(error)
@@ -133,7 +141,7 @@ export const makeExternalRequest = async (ctx, url) => {
           "connection": "close",
           "Cache-Control": "no-cache" 
         },
-        status_code: response.statuscode,
+        status_code: response.statusCode,
         body: data,
       },
     }
