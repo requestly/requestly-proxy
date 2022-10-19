@@ -92,7 +92,11 @@ async function makeRequest(requestOptions) {
         statusCode:respstatus,
         res: response
       }
-      
+
+      // needle handles decompressing the databuffers
+      delete responseMetadata.headers["content-encoding"]
+      delete responseMetadata.headers["Content-Encoding"]
+
       return {success: true, response: responseMetadata, data}
     } else {
       // hack: to return an understandable response back to user
