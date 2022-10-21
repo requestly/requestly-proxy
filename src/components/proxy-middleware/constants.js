@@ -14,6 +14,7 @@ export const RQ_INTERCEPTED_CONTENT_TYPES = [
   "text/plain",
   "text/javascript",
   "application/javascript",
+  "application/x-javascript",
   "text/css",
   "application/css",
   "application/json",
