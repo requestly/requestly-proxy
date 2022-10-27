@@ -88,7 +88,7 @@ class RuleActionProcessor {
         action_result = process_modify_request_action(rule_action, ctx);
         break;
       case RULE_ACTION.MODIFY_RESPONSE:
-        action_result = process_modify_response_action(rule_action, ctx);
+        action_result = await process_modify_response_action(rule_action, ctx);
         break;
       case RULE_ACTION.INSERT:
         action_result = process_insert_action(rule_action, ctx);
