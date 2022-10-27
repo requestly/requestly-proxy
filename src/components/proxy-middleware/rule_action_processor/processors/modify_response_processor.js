@@ -9,7 +9,7 @@ import { build_action_processor_response } from "../utils";
 import fs from "fs";
 const { types } = require("util");
 
-const process_modify_response_action = (action, ctx) => {
+const process_modify_response_action = async (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_RESPONSE_END];
 
   if (!allowed_handlers.includes(ctx.currentHandler)) {
@@ -20,7 +20,7 @@ const process_modify_response_action = (action, ctx) => {
     action.responseType &&
     action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.CODE
   ) {
-    modify_response_using_code(action, ctx);
+    await modify_response_using_code(action, ctx);
     return build_action_processor_response(action, true);
   } else if (
     action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE
@@ -98,9 +98,7 @@ const modify_response_using_code = async (action, ctx) => {
       finalResponse = await finalResponse;
     }
 
-    const isResponseJSON =
-      args.responseType && args.responseType.includes("application/json");
-    if (typeof finalResponse === "object" && isResponseJSON) {
+    if (typeof finalResponse === "object") {
       finalResponse = JSON.stringify(finalResponse);
     }
 
