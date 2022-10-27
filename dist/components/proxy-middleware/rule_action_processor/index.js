@@ -90,7 +90,7 @@ class RuleActionProcessor {
                     action_result = (0, modify_request_processor_1.default)(rule_action, ctx);
                     break;
                 case constants_1.RULE_ACTION.MODIFY_RESPONSE:
-                    action_result = (0, modify_response_processor_1.default)(rule_action, ctx);
+                    action_result = yield (0, modify_response_processor_1.default)(rule_action, ctx);
                     break;
                 case constants_1.RULE_ACTION.INSERT:
                     action_result = (0, insert_processor_1.default)(rule_action, ctx);

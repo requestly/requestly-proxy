@@ -18,14 +18,14 @@ const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
 const fs_1 = __importDefault(require("fs"));
 const { types } = require("util");
-const process_modify_response_action = (action, ctx) => {
+const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
     const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END];
     if (!allowed_handlers.includes(ctx.currentHandler)) {
         return (0, utils_1.build_action_processor_response)(action, false);
     }
     if (action.responseType &&
         action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.CODE) {
-        modify_response_using_code(action, ctx);
+        yield modify_response_using_code(action, ctx);
         return (0, utils_1.build_action_processor_response)(action, true);
     }
     else if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
@@ -36,7 +36,7 @@ const process_modify_response_action = (action, ctx) => {
         modify_response(ctx, action.response, action.statusCode);
         return (0, utils_1.build_action_processor_response)(action, true);
     }
-};
+});
 const modify_response = (ctx, new_resp, status_code) => {
     ctx.rq_response_body = new_resp;
     ctx.rq_response_status_code = status_code;
@@ -90,8 +90,7 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
         if (types.isPromise(finalResponse)) {
             finalResponse = yield finalResponse;
         }
-        const isResponseJSON = args.responseType && args.responseType.includes("application/json");
-        if (typeof finalResponse === "object" && isResponseJSON) {
+        if (typeof finalResponse === "object") {
             finalResponse = JSON.stringify(finalResponse);
         }
         if (finalResponse && typeof finalResponse === "string") {
