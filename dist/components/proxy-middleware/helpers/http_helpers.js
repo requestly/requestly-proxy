@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getContentType = exports.bodyParser = void 0;
+exports.parseJsonBody = exports.getContentType = exports.bodyParser = void 0;
 const charset_1 = __importDefault(require("charset"));
 const mime_types_1 = __importDefault(require("mime-types"));
 const bodyParser = (contentTypeHeader, buffer) => {
@@ -45,3 +45,13 @@ const getContentType = (contentTypeHeader) => {
     return contentType;
 };
 exports.getContentType = getContentType;
+const parseJsonBody = (data) => {
+    try {
+        return JSON.parse(data);
+    }
+    catch (e) {
+        /* Body is still buffer array */
+    }
+    return data;
+};
+exports.parseJsonBody = parseJsonBody;

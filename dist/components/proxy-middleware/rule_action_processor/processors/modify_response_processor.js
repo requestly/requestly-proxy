@@ -17,6 +17,7 @@ const requestly_core_1 = require("@requestly/requestly-core");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
 const fs_1 = __importDefault(require("fs"));
+const http_helpers_1 = require("../../helpers/http_helpers");
 const { types } = require("util");
 const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
     const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END];
@@ -52,6 +53,7 @@ const modify_response_using_local = (action, ctx) => {
     }
 };
 const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     let userFunction = null;
     try {
         userFunction = requestly_core_1.UTILS.GET_FUNCTION_FROM_STRING(action.response);
@@ -78,12 +80,12 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
             url: (0, proxy_ctx_helper_1.get_request_url)(ctx),
             responseType: ctx.serverToProxyResponse.headers["content-type"],
             requestHeaders: ctx.clientToProxyRequest.headers,
-            requestData: null,
+            requestData: (0, http_helpers_1.parseJsonBody)((_b = (_a = ctx.rq) === null || _a === void 0 ? void 0 : _a.final_request) === null || _b === void 0 ? void 0 : _b.body) || null,
         };
         try {
             args.responseJSON = JSON.parse(args.response);
         }
-        catch (_a) {
+        catch (_c) {
             /*Do nothing -- could not parse body as JSON */
         }
         finalResponse = userFunction(args);
