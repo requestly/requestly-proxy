@@ -7,6 +7,7 @@ import {
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
 import fs from "fs";
+import { parseJsonBody } from "../../helpers/http_helpers";
 const { types } = require("util");
 
 const process_modify_response_action = async (action, ctx) => {
@@ -83,7 +84,7 @@ const modify_response_using_code = async (action, ctx) => {
       url: get_request_url(ctx),
       responseType: ctx.serverToProxyResponse.headers["content-type"],
       requestHeaders: ctx.clientToProxyRequest.headers,
-      requestData: null,
+      requestData: parseJsonBody(ctx.rq?.final_request?.body) || null,
     };
 
     try {

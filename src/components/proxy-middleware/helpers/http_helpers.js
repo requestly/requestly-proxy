@@ -44,3 +44,12 @@ export const getContentType = (contentTypeHeader) => {
   contentType = contentTypeHeader.split(";")[0];
   return contentType;
 };
+
+export const parseJsonBody = (data) => {
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    /* Body is still buffer array */
+  }
+  return data;
+}
