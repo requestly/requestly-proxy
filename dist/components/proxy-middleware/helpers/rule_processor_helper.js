@@ -64,6 +64,7 @@ class RuleProcessorHelper {
             const rule_action = rule_processor.process({
                 rule,
                 requestURL: this.request_data.request_url,
+                details: this.request_data
             });
             return rule_action;
         };
@@ -78,7 +79,7 @@ class RuleProcessorHelper {
             const rule_action = rule_processor.process({
                 rule,
                 requestURL: this.request_data.request_url,
-                details: { requestData },
+                details: Object.assign(Object.assign({}, this.request_data), { requestData }),
             });
             return rule_action;
         };
@@ -93,7 +94,7 @@ class RuleProcessorHelper {
             const rule_action = rule_processor.process({
                 rule,
                 requestURL: this.request_data.request_url,
-                details: { requestData },
+                details: Object.assign(Object.assign({}, this.request_data), { requestData }),
             });
             return rule_action;
         };
@@ -127,6 +128,7 @@ class RuleProcessorHelper {
                 payload: {
                     requestOrigin: getRequestOrigin(),
                 },
+                details: this.request_data
             });
             return rule_action;
         };
@@ -162,6 +164,7 @@ class RuleProcessorHelper {
                 payload: {
                     requestOrigin: getRequestOrigin(),
                 },
+                details: this.request_data
             });
             return rule_action;
         };
@@ -182,6 +185,7 @@ class RuleProcessorHelper {
                 requestURL: this.request_data.request_url,
                 rule,
                 originalRequestHeaders: originalRequestHeadersObjectKeysValuePairs,
+                details: this.request_data
             });
             return rule_action;
         };
