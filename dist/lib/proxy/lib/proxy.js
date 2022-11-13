@@ -997,7 +997,7 @@ Proxy.prototype._onWebSocketConnection = function (ctx, callback) {
         return fn(ctx, callback);
     }, callback);
 };
-Proxy.prototype._onWebSocketFrame = function (ctx, type, fromServer, data, isBinary) {
+Proxy.prototype._onWebSocketFrame = function (ctx, type, fromServer, data, flags) {
     var self = this;
     async.forEach(this.onWebSocketFrameHandlers.concat(ctx.onWebSocketFrameHandlers), function (fn, callback) {
         return fn(ctx, type, fromServer, data, flags, function (err, newData, newFlags) {
@@ -1018,7 +1018,7 @@ Proxy.prototype._onWebSocketFrame = function (ctx, type, fromServer, data, isBin
         if (destWebSocket.readyState === WebSocket.OPEN) {
             switch (type) {
                 case "message":
-                    destWebSocket.send(data, { binary: isBinary });
+                    destWebSocket.send(data, { binary: flags });
                     break;
                 case "ping":
                     destWebSocket.ping(data, flags, false);
