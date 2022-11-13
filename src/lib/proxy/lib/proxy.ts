@@ -1189,7 +1189,7 @@ Proxy.prototype._onWebSocketFrame = function (
   type,
   fromServer,
   data,
-  isBinary
+  flags
 ) {
   var self = this;
   async.forEach(
@@ -1221,7 +1221,7 @@ Proxy.prototype._onWebSocketFrame = function (
       if (destWebSocket.readyState === WebSocket.OPEN) {
         switch (type) {
           case "message":
-            destWebSocket.send(data, { binary: isBinary });
+            destWebSocket.send(data, { binary: flags });
             break;
           case "ping":
             destWebSocket.ping(data, flags, false);
