@@ -19,6 +19,7 @@
     "@sentry/browser": "^6.19.2",
     "async": "^3.2.1",
     "axios": "^0.26.1",
+    "capture-console-logs": "^0.1.0",
     "charset": "^1.0.1",
     "debug": "^4.3.2",
     "httpsnippet": "^2.0.0",
