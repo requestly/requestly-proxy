@@ -33,6 +33,9 @@ class CtxRQNamespace {
       // headers,
       // body
     };
+
+    
+    this.consoleLogs = []
   }
 
   set_original_request = ({

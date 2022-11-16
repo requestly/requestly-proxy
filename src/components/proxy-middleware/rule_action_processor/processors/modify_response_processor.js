@@ -8,6 +8,7 @@ import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
 import fs from "fs";
 import { parseJsonBody } from "../../helpers/http_helpers";
+import ConsoleCapture from "capture-console-logs";
 const { types } = require("util");
 
 const process_modify_response_action = async (action, ctx) => {
@@ -93,11 +94,19 @@ const modify_response_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
+    const consoleCapture = new ConsoleCapture()
+    consoleCapture.start(true)
+
     finalResponse = userFunction(args);
 
     if (types.isPromise(finalResponse)) {
       finalResponse = await finalResponse;
     }
+
+    consoleCapture.stop()
+    const consoleLogs = consoleCapture.getCaptures()
+    
+    ctx.rq.consoleLogs.push(...consoleLogs)
 
     if (typeof finalResponse === "object") {
       finalResponse = JSON.stringify(finalResponse);
