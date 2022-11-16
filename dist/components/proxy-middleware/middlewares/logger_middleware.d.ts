@@ -61,6 +61,7 @@ declare class LoggerMiddleware {
         };
         requestShellCurl: string;
         actions: any[];
+        consoleLogs: any;
         requestState: string;
     };
 }

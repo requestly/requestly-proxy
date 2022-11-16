@@ -4,6 +4,7 @@ declare class CtxRQNamespace {
     original_response: {};
     final_request: {};
     final_response: {};
+    consoleLogs: any[];
     set_original_request: ({ method, path, host, port, headers, agent, body, query_params, }: {
         method?: any;
         path?: any;

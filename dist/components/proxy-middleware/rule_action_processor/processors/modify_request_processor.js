@@ -8,11 +8,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const proxy_1 = require("../../../../lib/proxy");
 const requestly_core_1 = require("@requestly/requestly-core");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
+const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
 const { types } = require("util");
 const process_modify_request_action = (action, ctx) => {
     const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST_END];
@@ -66,10 +70,15 @@ const modify_request_using_code = (action, ctx) => __awaiter(void 0, void 0, voi
         catch (_a) {
             /*Do nothing -- could not parse body as JSON */
         }
+        const consoleCapture = new capture_console_logs_1.default();
+        consoleCapture.start(true);
         finalRequest = userFunction(args);
         if (types.isPromise(finalRequest)) {
             finalRequest = yield finalRequest;
         }
+        consoleCapture.stop();
+        const consoleLogs = consoleCapture.getCaptures();
+        ctx.rq.consoleLogs.push(...consoleLogs);
         const isRequestJSON = !!args.requestJSON;
         if (typeof finalRequest === "object" && isRequestJSON) {
             finalRequest = JSON.stringify(finalRequest);

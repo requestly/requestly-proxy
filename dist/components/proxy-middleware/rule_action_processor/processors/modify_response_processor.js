@@ -18,6 +18,7 @@ const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
 const fs_1 = __importDefault(require("fs"));
 const http_helpers_1 = require("../../helpers/http_helpers");
+const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
 const { types } = require("util");
 const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
     const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END];
@@ -88,10 +89,15 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
         catch (_c) {
             /*Do nothing -- could not parse body as JSON */
         }
+        const consoleCapture = new capture_console_logs_1.default();
+        consoleCapture.start(true);
         finalResponse = userFunction(args);
         if (types.isPromise(finalResponse)) {
             finalResponse = yield finalResponse;
         }
+        consoleCapture.stop();
+        const consoleLogs = consoleCapture.getCaptures();
+        ctx.rq.consoleLogs.push(...consoleLogs);
         if (typeof finalResponse === "object") {
             finalResponse = JSON.stringify(finalResponse);
         }

@@ -91,6 +91,7 @@ class CtxRQNamespace {
         // headers,
         // body
         };
+        this.consoleLogs = [];
     }
 }
 exports.default = CtxRQNamespace;
