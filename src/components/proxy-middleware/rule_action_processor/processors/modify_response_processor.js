@@ -95,7 +95,7 @@ const modify_response_using_code = async (action, ctx) => {
     }
 
     const consoleCapture = new ConsoleCapture()
-    consoleCapture.start()
+    consoleCapture.start(true)
 
     finalResponse = userFunction(args);
 
@@ -106,7 +106,7 @@ const modify_response_using_code = async (action, ctx) => {
     consoleCapture.stop()
     const consoleLogs = consoleCapture.getCaptures()
     
-    ctx.rq.consoleLogs = consoleLogs
+    ctx.rq.consoleLogs.push(...consoleLogs)
 
     if (typeof finalResponse === "object") {
       finalResponse = JSON.stringify(finalResponse);
