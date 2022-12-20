@@ -61,6 +61,7 @@ const modify_request_using_code = (action, ctx) => __awaiter(void 0, void 0, voi
                     : null
                 : null,
             request: ctx.rq_request_body,
+            body: ctx.rq_request_body,
             url: (0, proxy_ctx_helper_1.get_request_url)(ctx),
             requestHeaders: ctx.clientToProxyRequest.headers,
         };

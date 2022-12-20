@@ -65,6 +65,7 @@ const modify_request_using_code = async (action, ctx) => {
           : null
         : null,
       request: ctx.rq_request_body,
+      body: ctx.rq_request_body,
       url: get_request_url(ctx),
       requestHeaders: ctx.clientToProxyRequest.headers,
     };
