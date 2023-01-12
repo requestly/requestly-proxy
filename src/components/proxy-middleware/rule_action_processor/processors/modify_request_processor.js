@@ -71,7 +71,7 @@ const modify_request_using_code = async (action, ctx) => {
     };
 
     try {
-      args.requestJSON = JSON.parse(args.request);
+      args.bodyAsJson = JSON.parse(args.request);
     } catch {
       /*Do nothing -- could not parse body as JSON */
     }
@@ -90,7 +90,7 @@ const modify_request_using_code = async (action, ctx) => {
 
     ctx.rq.consoleLogs.push(...consoleLogs)
 
-    const isRequestJSON = !!args.requestJSON;
+    const isRequestJSON = !!args.bodyAsJson;
     if (typeof finalRequest === "object" && isRequestJSON) {
       finalRequest = JSON.stringify(finalRequest);
     }
