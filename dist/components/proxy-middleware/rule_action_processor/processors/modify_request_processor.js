@@ -66,7 +66,7 @@ const modify_request_using_code = (action, ctx) => __awaiter(void 0, void 0, voi
             requestHeaders: ctx.clientToProxyRequest.headers,
         };
         try {
-            args.requestJSON = JSON.parse(args.request);
+            args.bodyAsJson = JSON.parse(args.request);
         }
         catch (_a) {
             /*Do nothing -- could not parse body as JSON */
@@ -80,7 +80,7 @@ const modify_request_using_code = (action, ctx) => __awaiter(void 0, void 0, voi
         consoleCapture.stop();
         const consoleLogs = consoleCapture.getCaptures();
         ctx.rq.consoleLogs.push(...consoleLogs);
-        const isRequestJSON = !!args.requestJSON;
+        const isRequestJSON = !!args.bodyAsJson;
         if (typeof finalRequest === "object" && isRequestJSON) {
             finalRequest = JSON.stringify(finalRequest);
         }
