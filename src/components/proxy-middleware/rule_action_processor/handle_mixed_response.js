@@ -1,5 +1,6 @@
 const axios = require("axios");
 const parser = require("ua-parser-js");
+import fs from "fs";
 import * as Sentry from "@sentry/browser";
 
 const handleMixedResponse = async (ctx, destinationUrl) => {
@@ -40,6 +41,36 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
           },
         };
       }
+    }
+  }
+
+  if(destinationUrl?.startsWith("file://")) {
+    console.log("original", destinationUrl)
+    const path = destinationUrl.slice(7)
+    console.log("filepath", path)
+    try {
+      // utf-8 is common assumption, but this introduces edge cases
+      const data = fs.readFileSync(path, "utf-8"); 
+      return {
+        status: true,
+        response_data: {
+          headers: { "Cache-Control": "no-cache" },
+          status_code: 200,
+          body: data,
+        },
+      };
+    } catch (err) {
+      Sentry.captureException(err);
+      // log for live debugging
+      console.log("error in openning local file", err)
+        return {
+          status: true,
+          response_data: {
+            headers: { "Cache-Control": "no-cache" },
+            status_code: 502,
+            body: err.response ? err.response.data : null,
+          },
+        };
     }
   }
   return { status: false };
