@@ -45,9 +45,7 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
   }
 
   if(destinationUrl?.startsWith("file://")) {
-    console.log("original", destinationUrl)
     const path = destinationUrl.slice(7)
-    console.log("filepath", path)
     try {
       // utf-8 is common assumption, but this introduces edge cases
       const data = fs.readFileSync(path, "utf-8"); 
@@ -68,7 +66,7 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
           response_data: {
             headers: { "Cache-Control": "no-cache" },
             status_code: 502,
-            body: err.response ? err.response.data : null,
+            body: err?.message,
           },
         };
     }
