@@ -9,7 +9,6 @@ import {
   build_action_processor_response,
   build_post_process_data,
 } from "../utils";
-const { URL } = require("url");
 
 // adding util to get origin header for handling cors
 const getRequestOrigin = (ctx) => {
