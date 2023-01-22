@@ -17,7 +17,6 @@ const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const modified_requests_pool_1 = __importDefault(require("../modified_requests_pool"));
 const handle_mixed_response_1 = __importDefault(require("../handle_mixed_response"));
 const utils_1 = require("../utils");
-const { URL } = require("url");
 // adding util to get origin header for handling cors
 const getRequestOrigin = (ctx) => {
     const originalRequestHeaders = ctx.rq.original_request.headers || {};

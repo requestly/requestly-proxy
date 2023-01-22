@@ -31,9 +31,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const axios = require("axios");
 const parser = require("ua-parser-js");
+const fs_1 = __importDefault(require("fs"));
 const Sentry = __importStar(require("@sentry/browser"));
 const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c;
@@ -71,6 +75,34 @@ const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, v
                     },
                 };
             }
+        }
+    }
+    if (destinationUrl === null || destinationUrl === void 0 ? void 0 : destinationUrl.startsWith("file://")) {
+        const path = destinationUrl.slice(7);
+        try {
+            // utf-8 is common assumption, but this introduces edge cases
+            const data = fs_1.default.readFileSync(path, "utf-8");
+            return {
+                status: true,
+                response_data: {
+                    headers: { "Cache-Control": "no-cache" },
+                    status_code: 200,
+                    body: data,
+                },
+            };
+        }
+        catch (err) {
+            Sentry.captureException(err);
+            // log for live debugging
+            console.log("error in openning local file", err);
+            return {
+                status: true,
+                response_data: {
+                    headers: { "Cache-Control": "no-cache" },
+                    status_code: 502,
+                    body: err === null || err === void 0 ? void 0 : err.message,
+                },
+            };
         }
     }
     return { status: false };
