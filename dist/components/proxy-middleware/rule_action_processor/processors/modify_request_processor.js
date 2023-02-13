@@ -17,6 +17,7 @@ const requestly_core_1 = require("@requestly/requestly-core");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
 const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
+const utils_2 = require("../../../../utils");
 const { types } = require("util");
 const process_modify_request_action = (action, ctx) => {
     const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST_END];
@@ -40,7 +41,7 @@ const modify_request = (ctx, new_req) => {
 const modify_request_using_code = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
     let userFunction = null;
     try {
-        userFunction = requestly_core_1.UTILS.GET_FUNCTION_FROM_STRING(action.request);
+        userFunction = (0, utils_2.getFunctionFromString)(action.request);
     }
     catch (error) {
         // User has provided an invalid function

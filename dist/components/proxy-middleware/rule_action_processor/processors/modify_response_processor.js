@@ -19,6 +19,7 @@ const utils_1 = require("../utils");
 const fs_1 = __importDefault(require("fs"));
 const http_helpers_1 = require("../../helpers/http_helpers");
 const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
+const utils_2 = require("../../../../utils");
 const { types } = require("util");
 const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
     const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END];
@@ -57,7 +58,7 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
     var _a, _b;
     let userFunction = null;
     try {
-        userFunction = requestly_core_1.UTILS.GET_FUNCTION_FROM_STRING(action.response);
+        userFunction = (0, utils_2.getFunctionFromString)(action.response);
     }
     catch (error) {
         // User has provided an invalid function
