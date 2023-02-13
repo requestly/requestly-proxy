@@ -1,13 +1,13 @@
 import { PROXY_HANDLER_TYPE } from "../../../../lib/proxy";
 
 import {
-  UTILS as GLOBAL_UTILS,
   CONSTANTS as GLOBAL_CONSTANTS,
 } from "@requestly/requestly-core";
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
-import fs from "fs";
 import ConsoleCapture from "capture-console-logs";
+import { getFunctionFromString } from "../../../../utils";
+
 const { types } = require("util");
 
 const process_modify_request_action = (action, ctx) => {
@@ -36,7 +36,7 @@ const modify_request = (ctx, new_req) => {
 const modify_request_using_code = async (action, ctx) => {
   let userFunction = null;
   try {
-    userFunction = GLOBAL_UTILS.GET_FUNCTION_FROM_STRING(action.request);
+    userFunction = getFunctionFromString(action.request);
   } catch (error) {
     // User has provided an invalid function
     return modify_request(
