@@ -15,9 +15,11 @@ class AmisuingMiddleware {
             if (!this.is_active) {
                 return true;
             }
-            Object.assign(ctx.proxyToServerRequestOptions.headers, {
-                ["amiusingrequestly"]: "true",
-            });
+            if (ctx.proxyToServerRequestOptions.host === "amiusing.requestly.io") {
+                Object.assign(ctx.proxyToServerRequestOptions.headers, {
+                    ["amiusingrequestly"]: "true",
+                });
+            }
         });
         this.is_active = is_active;
     }

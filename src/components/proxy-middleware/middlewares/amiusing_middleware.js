@@ -8,9 +8,12 @@ class AmisuingMiddleware {
       return true;
     }
 
-    Object.assign(ctx.proxyToServerRequestOptions.headers, {
-      ["amiusingrequestly"]: "true",
-    });
+    if(ctx.proxyToServerRequestOptions.host === "amiusing.requestly.io") {
+      Object.assign(ctx.proxyToServerRequestOptions.headers, {
+        ["amiusingrequestly"]: "true",
+      });
+    }
+
   };
 }
 
