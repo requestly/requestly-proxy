@@ -132,6 +132,39 @@ class ProxyMiddlewareManager {
         this.rulesHelper
       );
 
+      ctx.onError(async function (ctx, err, kind, callback) {
+        // Should only modify response body & headers
+        ctx.rq_response_body = "" + kind + ": " + err, "utf8";
+        const { action_result_objs, continue_request } = await rules_middleware.on_response(ctx);
+
+        // Only modify response if any modify_response action is applied
+        const modifyResponseActionExist = action_result_objs.some((action_result_obj) => action_result_obj?.action?.action === "modify_response")
+
+        if(modifyResponseActionExist) {
+          const statusCode = ctx.rq_response_status_code || 404;
+          const responseHeaders = getResponseHeaders(ctx) || {}
+          ctx.proxyToClientResponse.writeHead(
+              statusCode,
+              http.STATUS_CODES[statusCode],
+              responseHeaders
+            );
+          ctx.proxyToClientResponse.end(ctx.rq_response_body);
+
+          ctx.rq.set_final_response({
+              status_code: statusCode,
+              headers: responseHeaders,
+              body: ctx.rq_response_body,
+            });
+          logger_middleware.send_network_log(
+              ctx,
+              rules_middleware.action_result_objs,
+              GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
+            )
+        }
+
+        return callback();
+      })
+
       let request_body_chunks = [];
       ctx.onRequestData(async function (ctx, chunk, callback) {
         if (chunk) {

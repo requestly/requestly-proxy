@@ -13,7 +13,7 @@ import { getFunctionFromString } from "../../../../utils";
 const { types } = require("util");
 
 const process_modify_response_action = async (action, ctx) => {
-  const allowed_handlers = [PROXY_HANDLER_TYPE.ON_RESPONSE_END];
+  const allowed_handlers = [PROXY_HANDLER_TYPE.ON_RESPONSE_END, PROXY_HANDLER_TYPE.ON_ERROR];
 
   if (!allowed_handlers.includes(ctx.currentHandler)) {
     return build_action_processor_response(action, false);
@@ -82,9 +82,9 @@ const modify_response_using_code = async (action, ctx) => {
           ? ctx.clientToProxyRequest.method
           : null
         : null,
-      response: ctx.rq_response_body,
+      response: ctx?.rq_response_body,
       url: get_request_url(ctx),
-      responseType: ctx.serverToProxyResponse.headers["content-type"],
+      responseType: ctx?.serverToProxyResponse?.headers?.["content-type"],
       requestHeaders: ctx.clientToProxyRequest.headers,
       requestData: parseJsonBody(ctx.rq?.final_request?.body) || null,
     };
