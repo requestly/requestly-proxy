@@ -20,7 +20,7 @@ export const get_original_request_headers = (ctx) => {
 
 export const get_original_response_headers = (ctx) => {
   // TODO: This needs to be fetched from ctx.clientToProxy headers
-  return ctx.serverToProxyResponse.headers;
+  return ctx?.serverToProxyResponse?.headers || {};
 };
 
 export const is_request_preflight = (ctx) => {
