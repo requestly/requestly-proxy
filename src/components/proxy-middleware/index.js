@@ -133,7 +133,6 @@ class ProxyMiddlewareManager {
       );
 
       ctx.onError(async function (ctx, err, kind, callback) {
-        // console.log("onError", ctx, err, kind);
         // Should only modify response body & headers
         ctx.rq_response_body = "" + kind + ": " + err, "utf8";
         const { action_result_objs, continue_request } = await rules_middleware.on_response(ctx);
@@ -141,8 +140,7 @@ class ProxyMiddlewareManager {
         // Only modify response if any modify_response action is applied
         const modifyResponseActionExist = action_result_objs.some((action_result_obj) => action_result_obj?.action?.action === "modify_response")
 
-        if(action_result_objs.length > 0 && modifyResponseActionExist) {
-          // ctx.proxyToClientResponse.writeHead(404, "Proxy Error").end("TESTING 101");
+        if(modifyResponseActionExist) {
           const statusCode = ctx.rq_response_status_code || 404;
           const responseHeaders = getResponseHeaders(ctx) || {}
           ctx.proxyToClientResponse.writeHead(

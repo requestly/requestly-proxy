@@ -84,7 +84,7 @@ const modify_response_using_code = async (action, ctx) => {
         : null,
       response: ctx?.rq_response_body,
       url: get_request_url(ctx),
-      responseType: ctx?.serverToProxyResponse?.headers && ctx?.serverToProxyResponse?.headers["content-type"],
+      responseType: ctx?.serverToProxyResponse?.headers?.["content-type"],
       requestHeaders: ctx.clientToProxyRequest.headers,
       requestData: parseJsonBody(ctx.rq?.final_request?.body) || null,
     };

@@ -641,7 +641,7 @@ Proxy.prototype._onError = function (kind, ctx, err) {
   }
 
   async.forEach(
-    this.onErrorHandlers.concat(ctx && ctx.onErrorHandlers),
+    this.onErrorHandlers.concat(ctx?.onErrorHandlers || []),
     function (fn, callback) {
       if (fn) {
         return fn(ctx, err, kind, callback);
