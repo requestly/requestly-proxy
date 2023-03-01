@@ -7,6 +7,7 @@ const process_modify_header_action = (action, ctx) => {
     const allowed_handlers = [
         proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST,
         proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE,
+        proxy_1.PROXY_HANDLER_TYPE.ON_ERROR,
     ];
     if (!allowed_handlers.includes(ctx.currentHandler)) {
         return (0, utils_1.build_action_processor_response)(action, false);
@@ -14,7 +15,7 @@ const process_modify_header_action = (action, ctx) => {
     if (ctx.currentHandler == proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST) {
         modify_request_headers(action, ctx);
     }
-    else if (ctx.currentHandler == proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE) {
+    else if (ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE || ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_ERROR) {
         modify_response_headers(action, ctx);
     }
     return (0, utils_1.build_action_processor_response)(action, true);
@@ -30,6 +31,8 @@ const modify_request_headers = (action, ctx) => {
     newRequestHeaders.forEach((pair) => (ctx.proxyToServerRequestOptions.headers[pair.name] = pair.value));
 };
 const modify_response_headers = (action, ctx) => {
+    ctx.serverToProxyResponse = ctx.serverToProxyResponse || {};
+    ctx.serverToProxyResponse.headers = ctx.serverToProxyResponse.headers || {};
     // {"header1":"val1", "header2":"val2"}
     const originalResponseHeadersObject = ctx.serverToProxyResponse.headers;
     //  ["header1","header2"]

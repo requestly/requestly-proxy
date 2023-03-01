@@ -87,6 +87,28 @@ class ProxyMiddlewareManager {
                 // Figure out a way to enable/disable middleware dynamically
                 // instead of re-initing this again
                 const rules_middleware = new rules_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.RULES], ctx, this.rulesHelper);
+                ctx.onError(function (ctx, err, kind, callback) {
+                    return __awaiter(this, void 0, void 0, function* () {
+                        // Should only modify response body & headers
+                        ctx.rq_response_body = "" + kind + ": " + err, "utf8";
+                        const { action_result_objs, continue_request } = yield rules_middleware.on_response(ctx);
+                        // Only modify response if any modify_response action is applied
+                        const modifyResponseActionExist = action_result_objs.some((action_result_obj) => { var _a; return ((_a = action_result_obj === null || action_result_obj === void 0 ? void 0 : action_result_obj.action) === null || _a === void 0 ? void 0 : _a.action) === "modify_response"; });
+                        if (modifyResponseActionExist) {
+                            const statusCode = ctx.rq_response_status_code || 404;
+                            const responseHeaders = (0, proxy_ctx_helper_1.getResponseHeaders)(ctx) || {};
+                            ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], responseHeaders);
+                            ctx.proxyToClientResponse.end(ctx.rq_response_body);
+                            ctx.rq.set_final_response({
+                                status_code: statusCode,
+                                headers: responseHeaders,
+                                body: ctx.rq_response_body,
+                            });
+                            logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
+                        }
+                        return callback();
+                    });
+                });
                 let request_body_chunks = [];
                 ctx.onRequestData(function (ctx, chunk, callback) {
                     return __awaiter(this, void 0, void 0, function* () {

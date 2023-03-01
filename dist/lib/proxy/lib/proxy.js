@@ -49,6 +49,7 @@ const PROXY_HANDLER_TYPE = {
     ON_RESPONSE_HEADERS: "ON_RESPONSE_HEADERS",
     ON_RESPONSE_DATA: "ON_RESPONSE_DATA",
     ON_RESPONSE_END: "ON_RESPONSE_END",
+    ON_ERROR: "ON_ERROR",
 };
 module.exports.PROXY_HANDLER_TYPE = PROXY_HANDLER_TYPE;
 Proxy.prototype.listen = function (options, callback = (e) => { }) {
@@ -561,20 +562,24 @@ Proxy.prototype.onCertificateMissing = function (ctx, files, callback) {
     return this;
 };
 Proxy.prototype._onError = function (kind, ctx, err) {
-    this.onErrorHandlers.forEach(function (handler) {
-        return handler(ctx, err, kind);
-    });
     if (ctx) {
-        ctx.onErrorHandlers.forEach(function (handler) {
-            return handler(ctx, err, kind);
-        });
-        if (ctx.proxyToClientResponse && !ctx.proxyToClientResponse.headersSent) {
-            ctx.proxyToClientResponse.writeHead(504, "Proxy Error");
-        }
-        if (ctx.proxyToClientResponse && !ctx.proxyToClientResponse.finished) {
-            ctx.proxyToClientResponse.end("" + kind + ": " + err, "utf8");
-        }
+        ctx.currentHandler = PROXY_HANDLER_TYPE.ON_ERROR;
     }
+    async.forEach(this.onErrorHandlers.concat((ctx === null || ctx === void 0 ? void 0 : ctx.onErrorHandlers) || []), function (fn, callback) {
+        if (fn) {
+            return fn(ctx, err, kind, callback);
+        }
+        callback();
+    }, function () {
+        if (ctx) {
+            if (ctx.proxyToClientResponse && !ctx.proxyToClientResponse.headersSent) {
+                ctx.proxyToClientResponse.writeHead(504, "Proxy Error");
+            }
+            if (ctx.proxyToClientResponse && !ctx.proxyToClientResponse.finished) {
+                ctx.proxyToClientResponse.end("" + kind + ": " + err, "utf8");
+            }
+        }
+    });
 };
 Proxy.prototype._onWebSocketServerConnect = function (isSSL, ws, upgradeReq) {
     var self = this;

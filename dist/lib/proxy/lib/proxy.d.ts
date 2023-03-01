@@ -31,6 +31,7 @@ declare const PROXY_HANDLER_TYPE: {
     ON_RESPONSE_HEADERS: string;
     ON_RESPONSE_DATA: string;
     ON_RESPONSE_END: string;
+    ON_ERROR: string;
 };
 declare var ProxyFinalRequestFilter: (proxy: any, ctx: any) => void;
 declare var ProxyFinalResponseFilter: (proxy: any, ctx: any) => any;

@@ -22,7 +22,7 @@ const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
 const utils_2 = require("../../../../utils");
 const { types } = require("util");
 const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
-    const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END];
+    const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END, proxy_1.PROXY_HANDLER_TYPE.ON_ERROR];
     if (!allowed_handlers.includes(ctx.currentHandler)) {
         return (0, utils_1.build_action_processor_response)(action, false);
     }
@@ -55,7 +55,7 @@ const modify_response_using_local = (action, ctx) => {
     }
 };
 const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _a, _b, _c, _d;
     let userFunction = null;
     try {
         userFunction = (0, utils_2.getFunctionFromString)(action.response);
@@ -78,16 +78,16 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
                     ? ctx.clientToProxyRequest.method
                     : null
                 : null,
-            response: ctx.rq_response_body,
+            response: ctx === null || ctx === void 0 ? void 0 : ctx.rq_response_body,
             url: (0, proxy_ctx_helper_1.get_request_url)(ctx),
-            responseType: ctx.serverToProxyResponse.headers["content-type"],
+            responseType: (_b = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.serverToProxyResponse) === null || _a === void 0 ? void 0 : _a.headers) === null || _b === void 0 ? void 0 : _b["content-type"],
             requestHeaders: ctx.clientToProxyRequest.headers,
-            requestData: (0, http_helpers_1.parseJsonBody)((_b = (_a = ctx.rq) === null || _a === void 0 ? void 0 : _a.final_request) === null || _b === void 0 ? void 0 : _b.body) || null,
+            requestData: (0, http_helpers_1.parseJsonBody)((_d = (_c = ctx.rq) === null || _c === void 0 ? void 0 : _c.final_request) === null || _d === void 0 ? void 0 : _d.body) || null,
         };
         try {
             args.responseJSON = JSON.parse(args.response);
         }
-        catch (_c) {
+        catch (_e) {
             /*Do nothing -- could not parse body as JSON */
         }
         const consoleCapture = new capture_console_logs_1.default();
