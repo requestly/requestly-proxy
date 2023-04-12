@@ -981,6 +981,8 @@ Proxy.prototype._onHttpServerRequest = function (
       delete headers["content-length"];
     }
 
+    console.log("setting proxyToserver request options", ctx.clientToProxyRequest.url)
+
     ctx.proxyToServerRequestOptions = {
       method: ctx.clientToProxyRequest.method,
       path: ctx.clientToProxyRequest.url,

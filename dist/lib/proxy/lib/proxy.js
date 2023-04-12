@@ -833,6 +833,7 @@ Proxy.prototype._onHttpServerRequest = function (isSSL, clientToProxyRequest, pr
         if (this.options.forceChunkedRequest) {
             delete headers["content-length"];
         }
+        console.log("setting proxyToserver request options", ctx.clientToProxyRequest.url);
         ctx.proxyToServerRequestOptions = {
             method: ctx.clientToProxyRequest.method,
             path: ctx.clientToProxyRequest.url,

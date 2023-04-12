@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const proxy_1 = require("../../../../lib/proxy");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const modified_requests_pool_1 = __importDefault(require("../modified_requests_pool"));
-const handle_mixed_response_1 = __importDefault(require("../handle_mixed_response"));
+const redirectHelper_1 = require("../../helpers/redirectHelper");
 const utils_1 = require("../utils");
 // adding util to get origin header for handling cors
 const getRequestOrigin = (ctx) => {
@@ -40,9 +40,13 @@ const process_redirect_action = (action, ctx) => __awaiter(void 0, void 0, void 
     else {
         modified_requests_pool_1.default.add(new_url);
     }
-    const { status: isMixedResponse, response_data } = yield (0, handle_mixed_response_1.default)(ctx, new_url);
-    if (isMixedResponse) {
-        return (0, utils_1.build_action_processor_response)(action, true, (0, utils_1.build_post_process_data)(response_data.status_code, response_data.headers, response_data.body));
+    // handle mixed content and redirect with preserve cookie
+    if ((0, redirectHelper_1.shouldMakeExternalRequest)(ctx, action)) {
+        const { status: wasExternalRequestSuccessful, responseData } = yield (0, redirectHelper_1.makeExternalRequest)(ctx, new_url);
+        console.log("debug: final response data", wasExternalRequestSuccessful, responseData);
+        if (wasExternalRequestSuccessful) {
+            return (0, utils_1.build_action_processor_response)(action, true, (0, utils_1.build_post_process_data)(responseData.status_code, responseData.headers, responseData.body));
+        }
     }
     // If this is a pre-flight request, don't redirect it
     if ((0, proxy_ctx_helper_1.is_request_preflight)(ctx))

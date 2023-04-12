@@ -39,15 +39,17 @@ class RuleActionProcessor {
       if (!continue_request) return; // Already finished the request
       if (!action_result.post_process_data) return; // No post processing
 
-      const status_code = action_result.post_process_data.status_code || 200;
+      const status_code = action_result.post_process_data.status_code
       const headers = action_result.post_process_data.headers || {};
       let body = action_result.post_process_data.body || null;
 
-      // console.log("Log", ctx.rq.original_request);
-      if(typeof(body) !== 'string') {
-        body = JSON.stringify(body);
-      }
-      ctx.proxyToClientResponse.writeHead(status_code, headers).end(body);
+      // // console.log("Log", ctx.rq.original_request);
+      // if(typeof(body) !== 'string') {
+      //   body = JSON.stringify(body);
+      // }
+      ctx.proxyToClientResponse.writeHead(status_code, headers)
+      ctx.proxyToClientResponse.write(body)
+      ctx.proxyToClientResponse.end();
 
       ctx.rq.set_final_response({
         status_code: status_code,
