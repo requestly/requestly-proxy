@@ -21,6 +21,7 @@ import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "./constants";
 import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
+import { DesktopNetworkLogEventType } from "../../types/proxy";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 
@@ -155,11 +156,11 @@ class ProxyMiddlewareManager {
               headers: responseHeaders,
               body: ctx.rq_response_body,
             });
-          logger_middleware.send_network_log(
-              ctx,
-              rules_middleware.action_result_objs,
-              GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
-            )
+          logger_middleware.sendNetworkLogEvent(
+            DesktopNetworkLogEventType.RESPONSE_END,
+            ctx,
+            rules_middleware.action_result_objs,
+          )
         }
 
         return callback();
@@ -194,6 +195,12 @@ class ProxyMiddlewareManager {
         ctx.proxyToServerRequest.write(ctx.rq_request_body);
         ctx.rq.set_final_request({ body: ctx.rq_request_body });
 
+        // Enable this later on. For now we can update harRequestEntry on RESPONSE_END TTOO
+        // logger_middleware.sendNetworkLogEvent(
+        //   DesktopNetworkLogEventType.REQUEST_END,
+        //   ctx,
+        //   rules_middleware.action_result_objs,
+        // );
         return callback();
       });
 
@@ -252,10 +259,10 @@ class ProxyMiddlewareManager {
             ctx.rq_response_status_code || getResponseStatusCode(ctx),
           body: ctx.rq_response_body,
         });
-        logger_middleware.send_network_log(
+        logger_middleware.sendNetworkLogEvent(
+          DesktopNetworkLogEventType.RESPONSE_END,
           ctx,
           rules_middleware.action_result_objs,
-          GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
         );
 
         return callback();
@@ -269,10 +276,10 @@ class ProxyMiddlewareManager {
 
       ctx.rq.set_final_request(get_request_options(ctx));
       // TODO: Removing this log for now. Will add this when support is added for upsert in firebase logs.
-      logger_middleware.send_network_log(
+      logger_middleware.sendNetworkLogEvent(
+        DesktopNetworkLogEventType.REQUEST,
         ctx,
         rules_middleware.action_result_objs,
-        GLOBAL_CONSTANTS.REQUEST_STATE.LOADING
       );
       //logger
       if (continue_request) {

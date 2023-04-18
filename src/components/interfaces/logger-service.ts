@@ -1,5 +1,7 @@
+import { DesktopNetworkLogEvent } from "../../types/proxy";
+
 interface ILoggerService {
-    addLog: (log: any, requestHeaders: {}) => void;
+    sendLogEvent: (event: DesktopNetworkLogEvent, requestHeaders: {}) => void;
 }
 
 export default ILoggerService;
