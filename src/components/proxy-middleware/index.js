@@ -91,6 +91,17 @@ class ProxyMiddlewareManager {
     this.proxy.onRequest(fn);
   };
 
+  init_healthcheck_handler = () => {
+    this.init_request_handler((ctx, callback) => {
+      if(ctx.proxyToServerRequestOptions.host === "127.0.0.1" && ctx.proxyToServerRequestOptions.port == 8281)
+      {
+        console.log("Healthcheck")
+        return ctx.proxyToClientResponse.end("Proxy Running on 8281")
+      }
+      callback();
+    }, true);
+  };
+
   init_amiusing_handler = () => {
     const amiusing_middleware = new AmisuingMiddleware(
       this.config[MIDDLEWARE_TYPE.AMIUSING]
@@ -355,6 +366,7 @@ class ProxyMiddlewareManager {
     this.proxy.use(Proxy.gunzip);
 
     // this.init_ssl_tunneling_handler();
+    this.init_healthcheck_handler();
     this.init_amiusing_handler();
     this.init_ssl_cert_handler();
     this.init_main_handler();
