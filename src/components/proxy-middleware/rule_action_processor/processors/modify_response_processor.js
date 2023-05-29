@@ -4,18 +4,50 @@ import {
   CONSTANTS as GLOBAL_CONSTANTS,
 } from "@requestly/requestly-core";
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
-import { build_action_processor_response } from "../utils";
+import { build_action_processor_response, build_post_process_data } from "../utils";
 import fs from "fs";
 import { parseJsonBody } from "../../helpers/http_helpers";
 import ConsoleCapture from "capture-console-logs";
 import { getFunctionFromString } from "../../../../utils";
+import { isJSONString } from "../../helpers/response_helper";
 
 const { types } = require("util");
 
 const process_modify_response_action = async (action, ctx) => {
-  const allowed_handlers = [PROXY_HANDLER_TYPE.ON_RESPONSE_END, PROXY_HANDLER_TYPE.ON_ERROR];
+  const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST,PROXY_HANDLER_TYPE.ON_RESPONSE_END, PROXY_HANDLER_TYPE.ON_ERROR];
 
   if (!allowed_handlers.includes(ctx.currentHandler)) {
+    return build_action_processor_response(action, false);
+  }
+
+  if(ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST) {
+    if(
+      action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC 
+      // && action.shouldServeOnRequest // todo @lazyvab : the right schema attribute
+    ) {
+      let contentType, finalBody;
+      if(isJSONString(action.response)) {
+        contentType =  "application/json";
+        finalBody =  JSON.parse(action.response)
+      } else {
+        contentType = "text/plain"
+        finalBody = action.response
+      }
+      const status = action.statusCode || 200
+      
+      const finalHeaders = {"Content-Type": contentType}
+      modify_response(ctx, finalBody, status)
+      return build_action_processor_response(
+        action, 
+        true, 
+        build_post_process_data(
+          status,
+          finalHeaders,
+          finalBody,
+        )
+      )
+    }
+
     return build_action_processor_response(action, false);
   }
 
