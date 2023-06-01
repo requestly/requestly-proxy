@@ -23,7 +23,7 @@ const process_modify_response_action = async (action, ctx) => {
   if(ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST) {
     if(
       action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC 
-      // && action.shouldServeOnRequest // todo @lazyvab : the right schema attribute
+      && action.serveWithoutRequest 
     ) {
       let contentType, finalBody;
       if(isJSONString(action.response)) {
