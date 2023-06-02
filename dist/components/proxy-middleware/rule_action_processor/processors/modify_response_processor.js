@@ -22,8 +22,27 @@ const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
 const utils_2 = require("../../../../utils");
 const { types } = require("util");
 const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
-    const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END, proxy_1.PROXY_HANDLER_TYPE.ON_ERROR];
+    const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST, proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END, proxy_1.PROXY_HANDLER_TYPE.ON_ERROR];
     if (!allowed_handlers.includes(ctx.currentHandler)) {
+        return (0, utils_1.build_action_processor_response)(action, false);
+    }
+    if (ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST) {
+        if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.STATIC
+            && action.serveWithoutRequest) {
+            let contentType, finalBody;
+            try {
+                finalBody = JSON.parse(action.response);
+                contentType = "application/json";
+            }
+            catch (_a) {
+                contentType = "text/plain";
+                finalBody = action.response;
+            }
+            const status = action.statusCode || 200;
+            const finalHeaders = { "Content-Type": contentType };
+            modify_response(ctx, finalBody, status);
+            return (0, utils_1.build_action_processor_response)(action, true, (0, utils_1.build_post_process_data)(status, finalHeaders, finalBody));
+        }
         return (0, utils_1.build_action_processor_response)(action, false);
     }
     if (action.responseType &&
@@ -55,7 +74,7 @@ const modify_response_using_local = (action, ctx) => {
     }
 };
 const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d;
+    var _b, _c, _d, _e;
     let userFunction = null;
     try {
         userFunction = (0, utils_2.getFunctionFromString)(action.response);
@@ -80,14 +99,14 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
                 : null,
             response: ctx === null || ctx === void 0 ? void 0 : ctx.rq_response_body,
             url: (0, proxy_ctx_helper_1.get_request_url)(ctx),
-            responseType: (_b = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.serverToProxyResponse) === null || _a === void 0 ? void 0 : _a.headers) === null || _b === void 0 ? void 0 : _b["content-type"],
+            responseType: (_c = (_b = ctx === null || ctx === void 0 ? void 0 : ctx.serverToProxyResponse) === null || _b === void 0 ? void 0 : _b.headers) === null || _c === void 0 ? void 0 : _c["content-type"],
             requestHeaders: ctx.clientToProxyRequest.headers,
-            requestData: (0, http_helpers_1.parseJsonBody)((_d = (_c = ctx.rq) === null || _c === void 0 ? void 0 : _c.final_request) === null || _d === void 0 ? void 0 : _d.body) || null,
+            requestData: (0, http_helpers_1.parseJsonBody)((_e = (_d = ctx.rq) === null || _d === void 0 ? void 0 : _d.final_request) === null || _e === void 0 ? void 0 : _e.body) || null,
         };
         try {
             args.responseJSON = JSON.parse(args.response);
         }
-        catch (_e) {
+        catch (_f) {
             /*Do nothing -- could not parse body as JSON */
         }
         const consoleCapture = new capture_console_logs_1.default();
