@@ -9,7 +9,6 @@ import fs from "fs";
 import { parseJsonBody } from "../../helpers/http_helpers";
 import ConsoleCapture from "capture-console-logs";
 import { getFunctionFromString } from "../../../../utils";
-import { isJSONString } from "../../helpers/response_helper";
 
 const { types } = require("util");
 
@@ -26,10 +25,10 @@ const process_modify_response_action = async (action, ctx) => {
       && action.serveWithoutRequest 
     ) {
       let contentType, finalBody;
-      if(isJSONString(action.response)) {
-        contentType =  "application/json";
+      try {
         finalBody =  JSON.parse(action.response)
-      } else {
+        contentType =  "application/json";
+      } catch {
         contentType = "text/plain"
         finalBody = action.response
       }
