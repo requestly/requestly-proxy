@@ -1,7 +1,6 @@
 import { RULE_PROCESSOR } from "@requestly/requestly-core";
 import {
   CONSTANTS as GLOBAL_CONSTANTS,
-  UTILS as GLOBAL_UTILS,
 } from "@requestly/requestly-core";
 
 class RuleProcessorHelper {

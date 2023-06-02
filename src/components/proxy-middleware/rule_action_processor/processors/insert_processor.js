@@ -1,7 +1,6 @@
 import { PROXY_HANDLER_TYPE } from "../../../../lib/proxy";
 
 import {
-  UTILS as GLOBAL_UTILS,
   CONSTANTS as GLOBAL_CONSTANTS,
 } from "@requestly/requestly-core";
 import {

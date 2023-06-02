@@ -16,7 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@requestly/requestly-core": "^1.0.2",
+    "@requestly/requestly-core": "^1.0.3",
     "@sentry/browser": "^6.19.2",
     "async": "^3.2.1",
     "axios": "^0.26.1",
