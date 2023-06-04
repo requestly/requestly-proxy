@@ -18,4 +18,5 @@ export const RQ_INTERCEPTED_CONTENT_TYPES = [
   "text/css",
   "application/css",
   "application/json",
+  "application/manifest+json"
 ];
