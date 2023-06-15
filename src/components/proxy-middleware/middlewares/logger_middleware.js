@@ -86,6 +86,7 @@ class LoggerMiddleware {
         ctx.rq.final_response.status_code,
         ctx.rq.final_response.body,
         ctx.rq.final_response.headers || {},
+        ctx.rq.final_request.query_params
       ),
       requestShellCurl: this.generate_curl_from_har(ctx?.rq?.final_request?.requestHarObject), // TODO: Move this to client side
       actions: get_success_actions_from_action_results(action_result_objs),
