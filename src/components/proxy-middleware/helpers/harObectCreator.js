@@ -12,29 +12,14 @@ const createHarHeaders = (request_headers_obj) => {
   return headers;
 };
 
-const createHarQueryStrings = (path, query_params) => {
-  // TODO -> http://www.softwareishard.com/blog/har-12-spec/#queryString
-  console.log("path", path)
-  console.log("query_params", query_params)
-  if(path) {
-    const start = path.indexOf("?")
-    if(start !== -1) {
-      const subPath = path.substring(start+1)
-      console.log("subPath",subPath)
-
-      const result = subPath.split("&").map(queryPairs => {
-        const queryParts = queryPairs.split("=")
-        if(queryParts.length == 2) {
-          return {
-            "name": queryParts[0],
-            "value": queryParts[1]
-          }
-        }
-      })
-      return result
+const createHarQueryStrings = (query_params) => {
+  return Object.keys(query_params).map( query => {
+    const val = query_params[query]
+    return {
+      "name" : query,
+      "value": Array.isArray(val) ? val[0] : val // because these are passed as arrays from upstream
     }
-  }
-  return [];
+  })
 };
 
 const getContentType = (headers) => {
@@ -110,6 +95,7 @@ export const createRequestHarObject = (
     body,
     headers,
     agent,
+    query_params
   } = proxyToServerRequestOptions;
 
   return {
@@ -119,7 +105,7 @@ export const createRequestHarObject = (
     cookies: [], // TODO: add support for Cookies
     headers: requestHarObject.headers || createHarHeaders(headers),
     method: requestHarObject.method || method,
-    queryString: requestHarObject.queryString || createHarQueryStrings(path),
+    queryString: requestHarObject.queryString || createHarQueryStrings(query_params),
     url:
       requestHarObject.url || (agent?.protocol || "http:") + "//" + host + path,
     postData:
@@ -165,7 +151,7 @@ export const createHarRequest = (requestHeaders, method, protocol, host, path, r
     cookies: [], // TODO: add support for Cookies
     headers: createHarHeaders(requestHeaders),
     method: method,
-    queryString: createHarQueryStrings(path, requestParams),
+    queryString: createHarQueryStrings(requestParams),
     url:
       protocol + "://" + host + path,
     postData:
