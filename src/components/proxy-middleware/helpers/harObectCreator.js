@@ -13,13 +13,26 @@ const createHarHeaders = (request_headers_obj) => {
 };
 
 const createHarQueryStrings = (query_params) => {
-  return Object.keys(query_params).map( query => {
-    const val = query_params[query]
-    return {
-      "name" : query,
-      "value": Array.isArray(val) ? val[0] : val // because these are passed as arrays from upstream
+  let res = []
+
+  Object.keys(query_params).forEach(query => {
+    const query_value = query_params[query]
+    if(Array.isArray(query_value)) {
+      query_value.forEach(val => {
+        res.push({
+          "name" : query,
+          "value": val
+        })
+      })
+    } else {
+      res.push({
+        "name" : query,
+        "value": query_value
+      })
     }
   })
+
+  return res
 };
 
 const getContentType = (headers) => {
