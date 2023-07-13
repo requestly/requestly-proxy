@@ -3,12 +3,13 @@ import { PROXY_HANDLER_TYPE } from "../../../../lib/proxy";
 import {
   CONSTANTS as GLOBAL_CONSTANTS,
 } from "@requestly/requestly-core";
-import { get_request_url } from "../../helpers/proxy_ctx_helper";
+import { getResponseContentTypeHeader, getResponseHeaders, get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response, build_post_process_data } from "../utils";
 import fs from "fs";
-import { parseJsonBody } from "../../helpers/http_helpers";
+import { getContentType, parseJsonBody } from "../../helpers/http_helpers";
 import ConsoleCapture from "capture-console-logs";
 import { getFunctionFromString } from "../../../../utils";
+import { RQ_INTERCEPTED_CONTENT_TYPES } from "../../constants";
 
 const { types } = require("util");
 
@@ -54,18 +55,34 @@ const process_modify_response_action = async (action, ctx) => {
     action.responseType &&
     action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.CODE
   ) {
-    await modify_response_using_code(action, ctx);
-    return build_action_processor_response(action, true);
+    const contentTypeHeader = getResponseContentTypeHeader(ctx);
+    const contentType = getContentType(contentTypeHeader);
+    if (RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) || contentType == null) {
+      await modify_response_using_code(action, ctx);
+      delete_breaking_headers(ctx);
+      return build_action_processor_response(action, true);
+    }
+
+    // Sentry not working
+    // Sentry.captureException(new Error(`Content Type ${contentType} not supported for modification in programmatic mode`));
+    console.log(`Content Type ${contentType} not supported for modification in programmatic mode`);
+    return build_action_processor_response(action, false);
   } else if (
     action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE
   ) {
     modify_response_using_local(action, ctx);
+    delete_breaking_headers(ctx);
     return build_action_processor_response(action, true);
   } else {
     modify_response(ctx, action.response, action.statusCode);
+    delete_breaking_headers(ctx);
     return build_action_processor_response(action, true);
   }
 };
+
+const delete_breaking_headers = (ctx) => {
+  delete getResponseHeaders(ctx)['content-length'];
+}
 
 const modify_response = (ctx, new_resp, status_code) => {
   ctx.rq_response_body = new_resp;
@@ -113,7 +130,7 @@ const modify_response_using_code = async (action, ctx) => {
           ? ctx.clientToProxyRequest.method
           : null
         : null,
-      response: ctx?.rq_response_body,
+      response: ctx?.rq_parsed_response_body,
       url: get_request_url(ctx),
       responseType: ctx?.serverToProxyResponse?.headers?.["content-type"],
       requestHeaders: ctx.clientToProxyRequest.headers,

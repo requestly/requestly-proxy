@@ -219,31 +219,21 @@ class ProxyMiddlewareManager {
         const contentTypeHeader = getResponseContentTypeHeader(ctx);
         const contentType = getContentType(contentTypeHeader);
         const parsedBody = bodyParser(contentTypeHeader, body);
+        ctx.rq.set_original_response({ body: parsedBody });
 
         ctx.rq_response_body = body;
+        ctx.rq_parsed_response_body = parsedBody;
         ctx.rq_response_status_code = getResponseStatusCode(ctx);
+        const { action_result_objs, continue_request } = await rules_middleware.on_response_end(ctx);
 
-        if (RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) && parsedBody) {
-          ctx.rq.set_original_response({ body: parsedBody });
 
-          // Body and status code before any modifications
-          ctx.rq_response_body = parsedBody;
-
-          const { action_result_objs, continue_request } =
-            await rules_middleware.on_response_end(ctx);
-
-          // ctx.rq_response_body, ctx.rq_response_status_code after modifications
-
-          // TODO: @sahil to investigate why this is need
-          // Remove some conflicting headers like content-length, if any
-          delete getResponseHeaders(ctx)["content-length"];
-        }
         const statusCode = ctx.rq_response_status_code || getResponseStatusCode(ctx);
         ctx.proxyToClientResponse.writeHead(
           statusCode,
           http.STATUS_CODES[statusCode],
           getResponseHeaders(ctx)
         );
+
         ctx.proxyToClientResponse.write(ctx.rq_response_body);
 
         ctx.rq.set_final_response({
