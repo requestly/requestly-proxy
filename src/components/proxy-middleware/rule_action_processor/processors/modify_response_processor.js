@@ -63,6 +63,8 @@ const process_modify_response_action = async (action, ctx) => {
       return build_action_processor_response(action, true);
     }
 
+    // Sentry not working
+    // Sentry.captureException(new Error(`Content Type ${contentType} not supported for modification in programmatic mode`));
     console.log(`Content Type ${contentType} not supported for modification in programmatic mode`);
     return build_action_processor_response(action, false);
   } else if (
