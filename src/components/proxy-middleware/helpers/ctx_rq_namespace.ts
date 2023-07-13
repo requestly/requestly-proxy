@@ -29,11 +29,14 @@ class CtxRQNamespace {
   original_response: Partial<RQResponse>
   final_request: Partial<finalRequest> 
   final_response: Partial<RQResponse>
+
+  startTimestamp: number
   
   consoleLogs: ConsoleLog[]
   
 
   constructor() {
+    this.startTimestamp = Date.now();
     this.original_request = {
       // method: ctx.clientToProxyRequest.method,
       // path: ctx.clientToProxyRequest.url,
@@ -82,7 +85,8 @@ class CtxRQNamespace {
       this.final_response.status_code,
       this.final_response.body,
       this.final_response.headers,
-      this.final_request.query_params
+      this.final_request.query_params,
+      this.startTimestamp
     )
   }
 
@@ -99,7 +103,8 @@ class CtxRQNamespace {
       this.original_response.status_code,
       this.original_response.body,
       this.original_response.headers,
-      this.original_request.query_params
+      this.original_request.query_params,
+      this.startTimestamp
     )
   }
 
@@ -131,7 +136,6 @@ class CtxRQNamespace {
     status_code = null,
     headers = null,
     body = null,
-    query_params = null,
   }) => {
     if (headers) {
       this.original_response.headers = { ...headers };

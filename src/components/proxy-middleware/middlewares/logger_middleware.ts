@@ -66,7 +66,8 @@ class LoggerMiddleware {
     let eventHar = ctx.rq.getHar()
     eventHar = addCustomDetailsToHarEntries(eventHar, {
       id: ctx.uuid,
-      consoleLogs: ctx.rq.consoleLogs
+      consoleLogs: ctx.rq.consoleLogs,
+      duration: Date.now() - ctx.rq.startTimestamp
     })
 
     // todo: domain and app check

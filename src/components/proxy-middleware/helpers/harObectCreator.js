@@ -128,23 +128,23 @@ export const createRequestHarObject = (
 };
 
 
-export const createHar = (requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams) => {
+export const createHar = (requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams, requestStartTime) => {
   return {
     "log": {
       "version" : "1.2",
       "creator" : {},
       "browser" : {},
       "pages": [],
-      "entries": [createHarEntry(requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams)],
+      "entries": [createHarEntry(requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams, requestStartTime)],
       "comment": "" 
     }
   };
 }
 
-export const createHarEntry = (requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams) => {
+export const createHarEntry = (requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams, requestStartTime) => {
   return {
       // "pageref": "page_0",
-      "startedDateTime": new Date().toISOString(),
+      "startedDateTime": new Date(requestStartTime).toISOString(),
       // "time": 50,
       "request": createHarRequest(requestHeaders, method, protocol, host, path, requestBody, requestParams),
       "response": createHarResponse(responseStatusCode, response, responseHeaders),
