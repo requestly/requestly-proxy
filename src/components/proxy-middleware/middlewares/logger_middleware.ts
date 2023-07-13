@@ -3,6 +3,7 @@ import HTTPSnippet from "httpsnippet";
 import { get_success_actions_from_action_results } from "../rule_action_processor/utils";
 import ILoggerService from "../../interfaces/logger-service";
 import { addCustomDetailsToHarEntries } from "../helpers/harObectCreator";
+import parser from "ua-parser-js";
 
 type RequestState = "request_started" | "request_end" | "response_end";
 
@@ -62,14 +63,32 @@ class LoggerMiddleware {
     this.loggerService.addLog(event, {}) // todo: remove the second parameter, not used
   }
 
+  // todo fix: app name for chromium based browsers is always chrome
+  private getAppNameFromUA(ctx) {
+    const ua = ctx.rq.final_request.headers["user-agent"];
+    const { browser } = parser(ua);
+  
+    let appName: string;
+    if (browser.name === "Electron") {
+      appName = ua.split(")")[2].split("/")[0];
+    } else if (!browser.name) {
+      appName = ua.split("/")[0];
+    } else {
+      appName = browser.name;
+    }
+    return appName;
+  };
+
+
   private createNetworkEvent(ctx, actions) {
     let eventHar = ctx.rq.getHar()
     eventHar = addCustomDetailsToHarEntries(eventHar, {
       id: ctx.uuid,
-      consoleLogs: ctx.rq.consoleLogs
-    })
+      consoleLogs: ctx.rq.consoleLogs,
+      domain: ctx.rq.final_request.host,
+      app: this.getAppNameFromUA(ctx)
 
-    // todo: domain and app check
+    })
 
     const event = {
       id: ctx.uuid,
