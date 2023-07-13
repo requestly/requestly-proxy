@@ -30,6 +30,16 @@ class RulesMiddleware {
 
     this.action_result_objs = [];
   }
+  getActionsForEvent() {
+    if(!this.action_result_objs) return []
+
+    return this.action_result_objs.map(actionObj => {
+      return {
+        ruleId: actionObj?.action?.rule_id,
+        ruleType: actionObj?.action?.rule_type,
+      }
+    })
+  }
 
   _init_request_data = (ctx) => {
     this.request_data = {

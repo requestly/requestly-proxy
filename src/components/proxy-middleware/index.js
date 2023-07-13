@@ -160,6 +160,12 @@ class ProxyMiddlewareManager {
               rules_middleware.action_result_objs,
               GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
             )
+          // v3
+          logger_middleware.sendNetworkEvent(
+            ctx,
+            rules_middleware.getActionsForEvent(),
+            "response_end"
+          );
         }
 
         return callback();
@@ -257,6 +263,12 @@ class ProxyMiddlewareManager {
           rules_middleware.action_result_objs,
           GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
         );
+        // v3
+        logger_middleware.sendNetworkEvent(
+          ctx,
+          rules_middleware.getActionsForEvent(),
+          "response_end"
+        );
 
         return callback();
       });
@@ -273,6 +285,13 @@ class ProxyMiddlewareManager {
         ctx,
         rules_middleware.action_result_objs,
         GLOBAL_CONSTANTS.REQUEST_STATE.LOADING
+      );
+      
+      // v3
+      logger_middleware.sendNetworkEvent(
+        ctx,
+        rules_middleware.getActionsForEvent(),
+        "request_start"
       );
       //logger
       if (continue_request) {

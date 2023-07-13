@@ -1,7 +1,7 @@
 import { Agent as httpAgent } from "http";
 import { Agent as httpsAgent } from "https";
 import { createHar, createRequestHarObject } from "./harObectCreator";
-import { Log } from "capture-console-logs/src/logs"
+import { Log as ConsoleLog } from "capture-console-logs/src/logs"
 
 interface RQRequest {
   method: string
@@ -25,46 +25,46 @@ interface finalRequest extends RQRequest { // will be removed later
 }
 
 class CtxRQNamespace {
-  original_request: RQRequest 
-  original_response: RQResponse
-  final_request: finalRequest 
-  final_response: RQResponse
+  original_request: Partial<RQRequest> 
+  original_response: Partial<RQResponse>
+  final_request: Partial<finalRequest> 
+  final_response: Partial<RQResponse>
   
-  consoleLogs: Log[]
+  consoleLogs: ConsoleLog[]
   
 
   constructor() {
-    // this.original_request = {
-    //   // method: ctx.clientToProxyRequest.method,
-    //   // path: ctx.clientToProxyRequest.url,
-    //   // host: hostPort.host,
-    //   // port: hostPort.port,
-    //   // headers: headers,
-    //   // agent: ctx.isSSL ? self.httpsAgent : self.httpAgent,
-    //   // body: body
-    //   // query_params: query_params // json
-    // };
-    // this.original_response = {
-    //   // status_code,
-    //   // headers,
-    //   // body
-    // };
+    this.original_request = {
+      // method: ctx.clientToProxyRequest.method,
+      // path: ctx.clientToProxyRequest.url,
+      // host: hostPort.host,
+      // port: hostPort.port,
+      // headers: headers,
+      // agent: ctx.isSSL ? self.httpsAgent : self.httpAgent,
+      // body: body
+      // query_params: query_params // json
+    };
+    this.original_response = {
+      // status_code,
+      // headers,
+      // body
+    };
 
-    // this.final_request = {
-    //   // method: ctx.clientToProxyRequest.method,
-    //   // path: ctx.clientToProxyRequest.url,
-    //   // host: hostPort.host,
-    //   // port: hostPort.port,
-    //   // headers: headers,
-    //   // agent: ctx.isSSL ? self.httpsAgent : self.httpAgent,
-    //   // body: body
-    //   // query_params: query_params // json
-    // };
-    // this.final_response = {
-    //   // status_code,
-    //   // headers,
-    //   // body
-    // };
+    this.final_request = {
+      // method: ctx.clientToProxyRequest.method,
+      // path: ctx.clientToProxyRequest.url,
+      // host: hostPort.host,
+      // port: hostPort.port,
+      // headers: headers,
+      // agent: ctx.isSSL ? self.httpsAgent : self.httpAgent,
+      // body: body
+      // query_params: query_params // json
+    };
+    this.final_response = {
+      // status_code,
+      // headers,
+      // body
+    };
 
     this.consoleLogs = [];
   }

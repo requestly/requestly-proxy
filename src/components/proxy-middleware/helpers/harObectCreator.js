@@ -136,7 +136,7 @@ export const createHar = (requestHeaders, method, protocol, host, path, requestB
       "browser" : {},
       "pages": [],
       "entries": [createHarEntry(requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams)],
-      "comment": ""
+      "comment": "" 
     }
   };
 }
@@ -191,4 +191,13 @@ export const createHarResponse = (responseStatusCode, response, responseHeaders)
     "bodySize" : -1,
     "comment" : ""
   };
+}
+
+
+export const addCustomDetailsToHarEntries = (har, customdetails) => {
+  har?.log?.entries?.forEach(entry => {
+    entry._RQ = customdetails || {}
+  })
+
+  return har
 }

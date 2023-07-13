@@ -2,6 +2,9 @@ import { cloneDeep } from "lodash";
 import HTTPSnippet from "httpsnippet";
 import { get_success_actions_from_action_results } from "../rule_action_processor/utils";
 import ILoggerService from "../../interfaces/logger-service";
+import { addCustomDetailsToHarEntries } from "../helpers/harObectCreator";
+
+type RequestState = "request_started" | "request_end" | "response_end";
 
 class LoggerMiddleware {
   is_active: boolean
@@ -36,7 +39,7 @@ class LoggerMiddleware {
     );
   };
 
-  createLog = (ctx, action_result_objs = [], requestState = "") => {
+  private createLog = (ctx, action_result_objs = [], requestState = "") => {
     const rqLog = {
       id: ctx.uuid,
       timestamp: Math.floor(Date.now() / 1000),
@@ -50,6 +53,31 @@ class LoggerMiddleware {
     };
     return rqLog;
   };
+
+  sendNetworkEvent(ctx, actions = [], requestState: RequestState) {
+    const event = {
+      type: requestState,
+      data: this.createNetworkEvent(ctx, actions) 
+    }
+    this.loggerService.addLog(event, {}) // todo: remove the second parameter, not used
+  }
+
+  private createNetworkEvent(ctx, actions) {
+    let eventHar = ctx.rq.getHar()
+    eventHar = addCustomDetailsToHarEntries(eventHar, {
+      id: ctx.uuid,
+      consoleLogs: ctx.rq.consoleLogs
+    })
+
+    // todo: domain and app check
+
+    const event = {
+      id: ctx.uuid,
+      data: eventHar,
+      actions
+    }
+    return event
+  }
 }
 
 export default LoggerMiddleware;
