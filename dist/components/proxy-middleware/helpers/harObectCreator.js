@@ -14,9 +14,26 @@ const createHarHeaders = (request_headers_obj) => {
     }
     return headers;
 };
-const createHarQueryStrings = (path) => {
-    // TODO -> http://www.softwareishard.com/blog/har-12-spec/#queryString
-    return [];
+const createHarQueryStrings = (query_params) => {
+    let res = [];
+    Object.keys(query_params).forEach(query => {
+        const query_value = query_params[query];
+        if (Array.isArray(query_value)) {
+            query_value.forEach(val => {
+                res.push({
+                    "name": query,
+                    "value": val
+                });
+            });
+        }
+        else {
+            res.push({
+                "name": query,
+                "value": query_value
+            });
+        }
+    });
+    return res;
 };
 const getContentType = (headers) => {
     let contentType = null;
@@ -78,7 +95,7 @@ const createHarPostData = (body, headers) => {
 // create standard request har object: http://www.softwareishard.com/blog/har-12-spec/#request
 // URL: https://github.com/hoppscotch/hoppscotch/blob/75ab7fdb00c0129ad42d45165bd3ad0af1faca2e/packages/hoppscotch-app/helpers/new-codegen/har.ts#L26
 const createRequestHarObject = (requestHarObject, proxyToServerRequestOptions) => {
-    const { method, host, path, body, headers, agent, } = proxyToServerRequestOptions;
+    const { method, host, path, body, headers, agent, query_params } = proxyToServerRequestOptions;
     return {
         bodySize: -1,
         headersSize: -1,
@@ -86,32 +103,32 @@ const createRequestHarObject = (requestHarObject, proxyToServerRequestOptions) =
         cookies: [],
         headers: requestHarObject.headers || createHarHeaders(headers),
         method: requestHarObject.method || method,
-        queryString: requestHarObject.queryString || createHarQueryStrings(path),
+        queryString: requestHarObject.queryString || createHarQueryStrings(query_params),
         url: requestHarObject.url || ((agent === null || agent === void 0 ? void 0 : agent.protocol) || "http:") + "//" + host + path,
         postData: requestHarObject.postData ||
             createHarPostData(body, requestHarObject.headers),
     };
 };
 exports.createRequestHarObject = createRequestHarObject;
-const createHar = (requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders) => {
+const createHar = (requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams) => {
     return {
         "log": {
             "version": "1.2",
             "creator": {},
             "browser": {},
             "pages": [],
-            "entries": [(0, exports.createHarEntry)(requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders)],
+            "entries": [(0, exports.createHarEntry)(requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams)],
             "comment": ""
         }
     };
 };
 exports.createHar = createHar;
-const createHarEntry = (requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders) => {
+const createHarEntry = (requestHeaders, method, protocol, host, path, requestBody, responseStatusCode, response, responseHeaders, requestParams) => {
     return {
         // "pageref": "page_0",
         "startedDateTime": new Date().toISOString(),
         // "time": 50,
-        "request": (0, exports.createHarRequest)(requestHeaders, method, protocol, host, path, requestBody),
+        "request": (0, exports.createHarRequest)(requestHeaders, method, protocol, host, path, requestBody, requestParams),
         "response": (0, exports.createHarResponse)(responseStatusCode, response, responseHeaders),
         "cache": {},
         "timings": {},
@@ -121,7 +138,7 @@ const createHarEntry = (requestHeaders, method, protocol, host, path, requestBod
     };
 };
 exports.createHarEntry = createHarEntry;
-const createHarRequest = (requestHeaders, method, protocol, host, path, requestBody) => {
+const createHarRequest = (requestHeaders, method, protocol, host, path, requestBody, requestParams) => {
     return {
         bodySize: -1,
         headersSize: -1,
@@ -129,7 +146,7 @@ const createHarRequest = (requestHeaders, method, protocol, host, path, requestB
         cookies: [],
         headers: createHarHeaders(requestHeaders),
         method: method,
-        queryString: createHarQueryStrings(path),
+        queryString: createHarQueryStrings(requestParams),
         url: protocol + "://" + host + path,
         postData: createHarPostData(requestBody, createHarHeaders(requestHeaders)),
     };

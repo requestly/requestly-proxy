@@ -9,7 +9,7 @@ export function createRequestHarObject(requestHarObject: any, proxyToServerReque
     url: any;
     postData: any;
 };
-export function createHar(requestHeaders: any, method: any, protocol: any, host: any, path: any, requestBody: any, responseStatusCode: any, response: any, responseHeaders: any): {
+export function createHar(requestHeaders: any, method: any, protocol: any, host: any, path: any, requestBody: any, responseStatusCode: any, response: any, responseHeaders: any, requestParams: any): {
     log: {
         version: string;
         creator: {};
@@ -60,7 +60,7 @@ export function createHar(requestHeaders: any, method: any, protocol: any, host:
         comment: string;
     };
 };
-export function createHarEntry(requestHeaders: any, method: any, protocol: any, host: any, path: any, requestBody: any, responseStatusCode: any, response: any, responseHeaders: any): {
+export function createHarEntry(requestHeaders: any, method: any, protocol: any, host: any, path: any, requestBody: any, responseStatusCode: any, response: any, responseHeaders: any, requestParams: any): {
     startedDateTime: string;
     request: {
         bodySize: number;
@@ -102,7 +102,7 @@ export function createHarEntry(requestHeaders: any, method: any, protocol: any, 
     timings: {};
     comment: string;
 };
-export function createHarRequest(requestHeaders: any, method: any, protocol: any, host: any, path: any, requestBody: any): {
+export function createHarRequest(requestHeaders: any, method: any, protocol: any, host: any, path: any, requestBody: any, requestParams: any): {
     bodySize: number;
     headersSize: number;
     httpVersion: string;

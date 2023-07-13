@@ -20,6 +20,7 @@ const fs_1 = __importDefault(require("fs"));
 const http_helpers_1 = require("../../helpers/http_helpers");
 const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
 const utils_2 = require("../../../../utils");
+const constants_1 = require("../../constants");
 const { types } = require("util");
 const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
     const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST, proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END, proxy_1.PROXY_HANDLER_TYPE.ON_ERROR];
@@ -47,18 +48,32 @@ const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0
     }
     if (action.responseType &&
         action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.CODE) {
-        yield modify_response_using_code(action, ctx);
-        return (0, utils_1.build_action_processor_response)(action, true);
+        const contentTypeHeader = (0, proxy_ctx_helper_1.getResponseContentTypeHeader)(ctx);
+        const contentType = (0, http_helpers_1.getContentType)(contentTypeHeader);
+        if (constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) || contentType == null) {
+            yield modify_response_using_code(action, ctx);
+            delete_breaking_headers(ctx);
+            return (0, utils_1.build_action_processor_response)(action, true);
+        }
+        // Sentry not working
+        // Sentry.captureException(new Error(`Content Type ${contentType} not supported for modification in programmatic mode`));
+        console.log(`Content Type ${contentType} not supported for modification in programmatic mode`);
+        return (0, utils_1.build_action_processor_response)(action, false);
     }
     else if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
         modify_response_using_local(action, ctx);
+        delete_breaking_headers(ctx);
         return (0, utils_1.build_action_processor_response)(action, true);
     }
     else {
         modify_response(ctx, action.response, action.statusCode);
+        delete_breaking_headers(ctx);
         return (0, utils_1.build_action_processor_response)(action, true);
     }
 });
+const delete_breaking_headers = (ctx) => {
+    delete (0, proxy_ctx_helper_1.getResponseHeaders)(ctx)['content-length'];
+};
 const modify_response = (ctx, new_resp, status_code) => {
     ctx.rq_response_body = new_resp;
     ctx.rq_response_status_code = status_code;
@@ -97,7 +112,7 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
                     ? ctx.clientToProxyRequest.method
                     : null
                 : null,
-            response: ctx === null || ctx === void 0 ? void 0 : ctx.rq_response_body,
+            response: ctx === null || ctx === void 0 ? void 0 : ctx.rq_parsed_response_body,
             url: (0, proxy_ctx_helper_1.get_request_url)(ctx),
             responseType: (_c = (_b = ctx === null || ctx === void 0 ? void 0 : ctx.serverToProxyResponse) === null || _b === void 0 ? void 0 : _b.headers) === null || _c === void 0 ? void 0 : _c["content-type"],
             requestHeaders: ctx.clientToProxyRequest.headers,
