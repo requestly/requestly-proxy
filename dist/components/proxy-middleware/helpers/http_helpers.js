@@ -33,6 +33,19 @@ const bodyParser = (contentTypeHeader, buffer) => {
         });
     }
     return str_buffer;
+    /*
+     FOLLOWING IS HOW API CLIENT PARSES THE BODY
+     much simpler than above, but requires thorough testing
+    */
+    // // todo: add support for other content types
+    // let parsedResponse;
+    // if (contentTypeHeader?.includes("image/")) {
+    //   const raw = Buffer.from(buffer).toString("base64");
+    //   parsedResponse = `data:${contentTypeHeader};base64,${raw}`;
+    // } else {
+    //   parsedResponse = new TextDecoder().decode(buffer);
+    // }
+    // return parsedResponse;
 };
 exports.bodyParser = bodyParser;
 const getContentType = (contentTypeHeader) => {

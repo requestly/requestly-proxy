@@ -164,6 +164,10 @@ class ProxyMiddlewareManager {
                         ctx.rq_response_body = body;
                         ctx.rq_parsed_response_body = parsedBody;
                         ctx.rq_response_status_code = (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx);
+                        if (constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) && parsedBody) {
+                            ctx.rq_response_body = parsedBody;
+                            ctx.rq.set_original_response({ body: parsedBody });
+                        }
                         const { action_result_objs, continue_request } = yield rules_middleware.on_response_end(ctx);
                         const statusCode = ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx);
                         ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], (0, proxy_ctx_helper_1.getResponseHeaders)(ctx));
