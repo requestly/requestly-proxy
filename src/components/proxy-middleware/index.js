@@ -224,6 +224,11 @@ class ProxyMiddlewareManager {
         ctx.rq_response_body = body;
         ctx.rq_parsed_response_body = parsedBody;
         ctx.rq_response_status_code = getResponseStatusCode(ctx);
+
+        if (RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) && parsedBody) {
+          ctx.rq_response_body = parsedBody;
+          ctx.rq.set_original_response({ body: parsedBody });
+        }
         const { action_result_objs, continue_request } = await rules_middleware.on_response_end(ctx);
 
 
@@ -254,8 +259,7 @@ class ProxyMiddlewareManager {
       // Remove headers that may conflict
       delete getRequestHeaders(ctx)["content-length"];
 
-      const { action_result_objs, continue_request } =
-        await rules_middleware.on_request(ctx);
+      const { action_result_objs, continue_request } = await rules_middleware.on_request(ctx);
 
       ctx.rq.set_final_request(get_request_options(ctx));
       // TODO: Removing this log for now. Will add this when support is added for upsert in firebase logs.
