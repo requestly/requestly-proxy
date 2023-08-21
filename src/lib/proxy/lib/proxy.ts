@@ -795,6 +795,15 @@ Proxy.prototype._onWebSocketServerConnect = function (isSSL, ws, upgradeReq) {
     agent: ctx.isSSL ? self.httpsAgent : self.httpAgent,
     headers: ptosHeaders,
   };
+  if(ctopHeaders["sec-websocket-version"]) {
+    ctx.proxyToServerWebSocketOptions.protocolVersion = parseInt(ctopHeaders["sec-websocket-version"])
+  }
+  if(ctopHeaders["sec-websocket-protocol"]) {
+    ctx.proxyToServerWebSocketOptions.subProtocol = ctopHeaders["sec-websocket-protocol"]
+  }
+  const socketOrigin = ctopHeaders["origin"] || ctopHeaders["sec-websocket-origin"];
+  if(socketOrigin) ctx.proxyToServerWebSocketOptions.origin = socketOrigin
+
   return self._onWebSocketConnection(ctx, function (err) {
     if (err) {
       return self._onWebSocketError(ctx, err);
@@ -803,10 +812,20 @@ Proxy.prototype._onWebSocketServerConnect = function (isSSL, ws, upgradeReq) {
   });
 
   function makeProxyToServerWebSocket() {
-    ctx.proxyToServerWebSocket = new WebSocket(
-      ctx.proxyToServerWebSocketOptions.url,
-      ctx.proxyToServerWebSocketOptions
-    );
+    try {
+      ctx.proxyToServerWebSocket = new WebSocket(
+        ctx.proxyToServerWebSocketOptions.url,
+        ctx.proxyToServerWebSocketOptions.subProtocol || "",
+        ctx.proxyToServerWebSocketOptions
+      );
+    } catch (error) {
+      // because some sub protocols are not accepted
+      ctx.proxyToServerWebSocket = new WebSocket(
+        ctx.proxyToServerWebSocketOptions.url,
+        ctx.proxyToServerWebSocketOptions
+      );
+    }
+
     ctx.proxyToServerWebSocket.on(
       "message",
       self._onWebSocketFrame.bind(self, ctx, "message", true)
