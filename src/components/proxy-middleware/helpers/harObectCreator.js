@@ -21,13 +21,13 @@ const createHarQueryStrings = (query_params) => {
       query_value.forEach(val => {
         res.push({
           "name" : query,
-          "value": val
+          "value": val ?? ""
         })
       })
     } else {
       res.push({
         "name" : query,
-        "value": query_value
+        "value": query_value ?? ""
       })
     }
   })

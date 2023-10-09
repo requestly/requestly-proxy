@@ -51,14 +51,7 @@ export const bodyParser = (contentTypeHeader, buffer) => {
 };
 
 export const getContentType = (contentTypeHeader) => {
-  if (!contentTypeHeader) {
-    return null;
-  }
-
-  let contentType = null;
-  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type
-  contentType = contentTypeHeader.split(";")[0];
-  return contentType;
+  return contentTypeHeader?.split(";")[0] ?? null;
 };
 
 export const parseJsonBody = (data) => {

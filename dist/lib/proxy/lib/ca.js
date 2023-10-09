@@ -140,7 +140,19 @@ CA.create = function (caFolder, callback) {
         function (callback) {
             FS.exists(path.join(ca.certsFolder, "ca.pem"), function (exists) {
                 if (exists) {
-                    ca.loadCA(callback);
+                    // ca.loadCA(callback);
+                    ca.loadCA(function (err) {
+                        if (err) {
+                            return callback(err);
+                        }
+                        if (ca.CAcert.validity.notAfter < new Date()) {
+                            // generate the certificate again since it is expired
+                            ca.generateCA(callback);
+                        }
+                        else {
+                            return callback();
+                        }
+                    });
                 }
                 else {
                     ca.generateCA(callback);
