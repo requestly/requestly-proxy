@@ -22,14 +22,14 @@ const createHarQueryStrings = (query_params) => {
             query_value.forEach(val => {
                 res.push({
                     "name": query,
-                    "value": val
+                    "value": val !== null && val !== void 0 ? val : ""
                 });
             });
         }
         else {
             res.push({
                 "name": query,
-                "value": query_value
+                "value": query_value !== null && query_value !== void 0 ? query_value : ""
             });
         }
     });
