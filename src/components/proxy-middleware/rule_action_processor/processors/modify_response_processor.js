@@ -135,6 +135,7 @@ const modify_response_using_code = async (action, ctx) => {
       responseType: ctx?.serverToProxyResponse?.headers?.["content-type"],
       requestHeaders: ctx.clientToProxyRequest.headers,
       requestData: parseJsonBody(ctx.rq?.final_request?.body) || null,
+      statusCode: ctx.serverToProxyResponse.statusCode,
     };
 
     try {
