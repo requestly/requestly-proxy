@@ -117,6 +117,7 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
             responseType: (_c = (_b = ctx === null || ctx === void 0 ? void 0 : ctx.serverToProxyResponse) === null || _b === void 0 ? void 0 : _b.headers) === null || _c === void 0 ? void 0 : _c["content-type"],
             requestHeaders: ctx.clientToProxyRequest.headers,
             requestData: (0, http_helpers_1.parseJsonBody)((_e = (_d = ctx.rq) === null || _d === void 0 ? void 0 : _d.final_request) === null || _e === void 0 ? void 0 : _e.body) || null,
+            statusCode: ctx.serverToProxyResponse.statusCode,
         };
         try {
             args.responseJSON = JSON.parse(args.response);
