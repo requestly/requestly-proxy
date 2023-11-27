@@ -69,6 +69,7 @@ declare namespace HttpMitmProxy {
         }
       ) => void
     ): void;
+    onCARegenerated(callback: () => void): void;
 
     //undocumented helpers
     onConnect(
