@@ -12,7 +12,7 @@ var events = require("events");
 var WebSocket = require("ws");
 var url = require("url");
 var semaphore = require("semaphore");
-var ca = require("./ca.js");
+var CA = require("./ca.js");
 var Sentry = require("@sentry/browser");
 const checkInvalidHeaderChar = require("../custom/utils/checkInvalidHeaderChar");
 const debug = require("debug")("http-mitm-proxy");
@@ -38,6 +38,7 @@ var Proxy = function () {
     this.onResponseDataHandlers = [];
     this.onResponseEndHandlers = [];
     this.responseContentPotentiallyModified = false;
+    this.onCARegeneratedHandlers = [];
 };
 module.exports.Proxy = Proxy;
 const PROXY_HANDLER_TYPE = {
@@ -74,7 +75,7 @@ Proxy.prototype.listen = function (options, callback = (e) => { }) {
     this.httpsPort = this.forceSNI ? options.httpsPort : undefined;
     this.sslCaDir =
         options.sslCaDir || path.resolve(process.cwd(), ".http-mitm-proxy");
-    ca.create(this.sslCaDir, function (err, ca) {
+    this.ca = CA.create(this.sslCaDir, function (err, ca) {
         if (err) {
             return callback(err);
         }
@@ -115,7 +116,8 @@ Proxy.prototype.listen = function (options, callback = (e) => { }) {
                 callback();
             });
         }
-    });
+    }.bind(this));
+    this.ca.onCARegenerated(this._onCARegenerated.bind(this));
     return this;
 };
 Proxy.prototype._createHttpsServer = function (options, callback) {
@@ -560,6 +562,12 @@ Proxy.prototype.onCertificateMissing = function (ctx, files, callback) {
         });
     });
     return this;
+};
+Proxy.prototype.onCARegenerated = function (fn) {
+    this.onCARegeneratedHandlers.push(fn);
+};
+Proxy.prototype._onCARegenerated = function (pathToNewCA) {
+    this.onCARegeneratedHandlers.forEach(fn => fn(pathToNewCA));
 };
 Proxy.prototype._onError = function (kind, ctx, err) {
     if (ctx) {

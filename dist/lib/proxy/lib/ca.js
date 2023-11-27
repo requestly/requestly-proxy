@@ -127,7 +127,12 @@ var ServerExtensions = [
         name: "subjectKeyIdentifier",
     },
 ];
-var CA = function () { };
+var CA = function () {
+    this.onCARegenerationCallbacks = [];
+};
+CA.prototype.onCARegenerated = function (callback) {
+    this.onCARegenerationCallbacks.push(callback);
+};
 CA.create = function (caFolder, callback) {
     var ca = new CA();
     ca.baseCAFolder = caFolder;
@@ -165,6 +170,7 @@ CA.create = function (caFolder, callback) {
         }
         return callback(null, ca);
     });
+    return ca;
 };
 CA.prototype.randomSerialNumber = function () {
     // generate random 16 bytes hex string
@@ -194,12 +200,25 @@ CA.prototype.generateCA = function (callback) {
         cert.sign(keys.privateKey, Forge.md.sha256.create());
         self.CAcert = cert;
         self.CAkeys = keys;
+        // delete all the keys and certs in the folders, first
+        // so that previously generated keys and certs are not used
+        async.parallel([
+            ...FS.readdirSync(self.certsFolder).map((file) => {
+                return () => FS.unlinkSync(path.join(self.certsFolder, file));
+            }),
+            ...FS.readdirSync(self.keysFolder).map((file) => {
+                return () => FS.unlinkSync(path.join(self.keysFolder, file));
+            }),
+        ], (err) => {
+            console.debug("Error while deleting existing certs during CA regeneration: ", err);
+        });
         async.parallel([
             FS.writeFile.bind(null, path.join(self.certsFolder, "ca.pem"), pki.certificateToPem(cert)),
             FS.writeFile.bind(null, path.join(self.keysFolder, "ca.private.key"), pki.privateKeyToPem(keys.privateKey)),
             FS.writeFile.bind(null, path.join(self.keysFolder, "ca.public.key"), pki.publicKeyToPem(keys.publicKey)),
         ], callback);
-    });
+        this.onCARegenerationCallbacks.forEach((callback) => callback(path.join(self.certsFolder, "ca.pem")));
+    }.bind(self));
 };
 CA.prototype.loadCA = function (callback) {
     var self = this;
