@@ -16,7 +16,7 @@ declare var WebSocket: {
 };
 declare var url: any;
 declare var semaphore: any;
-declare var ca: any;
+declare var CA: any;
 declare var Sentry: any;
 declare const checkInvalidHeaderChar: any;
 declare const debug: any;

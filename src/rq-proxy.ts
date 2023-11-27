@@ -25,6 +25,9 @@ class RQProxy {
         console.log(proxyConfig);
         // @ts-ignore
         this.proxy = new Proxy();
+        if(proxyConfig.onCARegenerated) {
+            this.proxy.onCARegenerated(proxyConfig.onCARegenerated)
+        }
         // console.log(this.proxy);
         this.proxy.listen(
             {

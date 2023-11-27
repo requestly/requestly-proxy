@@ -13,6 +13,9 @@ class RQProxy {
             console.log(proxyConfig);
             // @ts-ignore
             this.proxy = new proxy_1.default();
+            if (proxyConfig.onCARegenerated) {
+                this.proxy.onCARegenerated(proxyConfig.onCARegenerated);
+            }
             // console.log(this.proxy);
             this.proxy.listen({
                 port: proxyConfig.port,
