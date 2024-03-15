@@ -19,7 +19,7 @@
     "@requestly/requestly-core": "^1.0.3",
     "@sentry/browser": "^6.19.2",
     "async": "^3.2.5",
-    "axios": "^0.26.1",
+    "axios": "^0.28.0",
     "capture-console-logs": "^1.0.1",
     "charset": "^1.0.1",
     "debug": "^4.3.2",
