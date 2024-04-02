@@ -64,18 +64,27 @@ const handleCSSScripts = (cssScripts, incomingDOM) => {
  */
 const includeCSS = (script, incomingDOM) => {
   if (script.type === GLOBAL_CONSTANTS.SCRIPT_TYPES.URL) {
-    addRemoteCSS(script.value, incomingDOM);
+    addRemoteCSS(script.value, script.attributes, incomingDOM);
   } else if (script.type === GLOBAL_CONSTANTS.SCRIPT_TYPES.CODE) {
-    embedCSS(script.value, incomingDOM);
+    embedCSS(script.value, script.attributes, incomingDOM);
   }
 };
 
-const addRemoteCSS = (src, incomingDOM) => {
+const addRemoteCSS = (src, attributes, incomingDOM) => {
   var link = incomingDOM.createElement("link");
+
+  if (attributes) {
+    attributes.forEach(({ name: attrName, value: attrVal }) => {
+      link.setAttribute(attrName, attrVal ?? "");
+    });
+  } else {
+    link.type = "text/css";
+    link.rel = "stylesheet";
+  }
+
   link.href = src;
-  link.type = "text/css";
-  link.rel = "stylesheet";
-  link.className = getScriptClassAttribute();
+  link.classList.add(getScriptClassAttribute());
+
   (incomingDOM.head || incomingDOM.documentElement).appendChild(link);
 };
 
@@ -83,11 +92,17 @@ const getScriptClassAttribute = () => {
   return GLOBAL_CONSTANTS.PUBLIC_NAMESPACE + "SCRIPT";
 };
 
-const embedCSS = (css, incomingDOM) => {
+const embedCSS = (css, attributes, incomingDOM) => {
   var style = incomingDOM.createElement("style");
-  style.type = "text/css";
   style.appendChild(incomingDOM.createTextNode(css));
-  style.className = getScriptClassAttribute();
+
+  if (attributes) {
+    attributes.forEach(({ name: attrName, value: attrVal }) => {
+      style.setAttribute(attrName, attrVal ?? "");
+    });
+  }
+
+  style.classList.add(getScriptClassAttribute());
   (incomingDOM.head || incomingDOM.documentElement).appendChild(style);
 };
 
@@ -109,21 +124,28 @@ const addLibraries = (libraries, indexArg, incomingDOM) => {
   };
 
   if (library) {
-    addRemoteJS(library.src, addNextLibraries, incomingDOM);
+    addRemoteJS(library.src, null, addNextLibraries, incomingDOM);
   } else {
     addNextLibraries();
   }
 };
 
-const addRemoteJS = (src, callback, incomingDOM) => {
+const addRemoteJS = (src, attributes, callback, incomingDOM) => {
   var script = incomingDOM.createElement("script");
   // NOT WORKING
   // if (typeof callback === "function") {
   // script.onload = callback
   // }
-  script.type = "text/javascript";
+  if (attributes) {
+    attributes.forEach(({ name: attrName, value: attrVal }) => {
+      script.setAttribute(attrName, attrVal ?? "");
+    });
+  } else {
+    script.type = "text/javascript";
+  }
+
   script.src = src;
-  script.className = getScriptClassAttribute();
+  script.classList.add(getScriptClassAttribute());
   (incomingDOM.head || incomingDOM.documentElement).appendChild(script);
 
   // HOTFIX
@@ -173,27 +195,33 @@ const includeJSScriptsInOrder = (scripts, callback, indexArg, incomingDOM) => {
 
 const includeJS = (script, callback, incomingDOM) => {
   if (script.type === GLOBAL_CONSTANTS.SCRIPT_TYPES.URL) {
-    addRemoteJS(script.value, callback, incomingDOM);
+    addRemoteJS(script.value, script.attributes, callback, incomingDOM);
     return;
   }
 
   if (script.type === GLOBAL_CONSTANTS.SCRIPT_TYPES.CODE) {
-    executeJS(script.value, null, incomingDOM);
+    executeJS(script.value, script.attributes, incomingDOM);
   }
 
   typeof callback === "function" && callback();
 };
 
-const executeJS = (code, shouldRemove, incomingDOM) => {
+const executeJS = (code, attributes, incomingDOM) => {
   const script = incomingDOM.createElement("script");
-  script.type = "text/javascript";
-  script.className = getScriptClassAttribute();
+
+  if (attributes) {
+    attributes.forEach(({ name: attrName, value: attrVal }) => {
+      script.setAttribute(attrName, attrVal ?? "");
+    });
+  } else {
+    script.type = "text/javascript";
+  }
+
+  script.classList.add(getScriptClassAttribute());
+
   script.appendChild(incomingDOM.createTextNode(code));
   const parent = incomingDOM.head || incomingDOM.documentElement;
   parent.appendChild(script);
-  if (shouldRemove) {
-    parent.removeChild(script);
-  }
 };
 
 export default process_insert_action;
