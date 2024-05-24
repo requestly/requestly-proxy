@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from "uuid";
 import { cloneDeep } from "lodash";
 import HTTPSnippet from "httpsnippet";
 import { get_success_actions_from_action_results } from "../rule_action_processor/utils";

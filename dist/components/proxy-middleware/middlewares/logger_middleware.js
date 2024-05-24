@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const uuid_1 = require("uuid");
 const lodash_1 = require("lodash");
 const httpsnippet_1 = __importDefault(require("httpsnippet"));
 const utils_1 = require("../rule_action_processor/utils");
