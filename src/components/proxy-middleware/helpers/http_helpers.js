@@ -19,7 +19,7 @@ export const bodyParser = (contentTypeHeader, buffer) => {
 
 
 export const getContentType = (contentTypeHeader) => {
-  return contentTypeHeader ?? null;
+  return contentTypeHeader?.split(";")[0] ?? null;
 };
 
 export const parseJsonBody = (data) => {
