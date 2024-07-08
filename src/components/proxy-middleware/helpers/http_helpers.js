@@ -1,54 +1,22 @@
 import charset from "charset";
 import mime from "mime-types";
 
+
+export const getEncoding = (contentTypeHeader, buffer) => {
+  const encoding = charset(contentTypeHeader, buffer) || mime.charset(contentTypeHeader) || "utf8";
+  return encoding;
+}
+
 export const bodyParser = (contentTypeHeader, buffer) => {
-  let inherentEncoding =
-    charset(contentTypeHeader) || mime.charset(contentTypeHeader);
-  let str_buffer = null;
-  const isEncodingValid = (givenEncoding) =>
-    givenEncoding && Buffer.isEncoding(givenEncoding);
-  const setBufferString = (givenEncoding) =>
-    (str_buffer = buffer.toString(givenEncoding));
-
-  if (isEncodingValid(inherentEncoding)) {
-    setBufferString(inherentEncoding);
-  } else {
-    const mostCommonEncodings = [
-      "utf8", // utf8 can also decode ASCII to ISO-8859-1, which is also very widely used
-      "utf16le",
-      "ascii",
-      "ucs2",
-      "base64",
-      "latin1",
-      "binary",
-      "hex",
-    ];
-    mostCommonEncodings.every((newPossibleEncoding) => {
-      if (isEncodingValid(newPossibleEncoding)) {
-        setBufferString(newPossibleEncoding);
-        return false;
-      }
-    });
+  const encoding = getEncoding(contentTypeHeader, buffer);
+  try {
+    return buffer.toString(encoding);
+  } catch (error) {
+    // some encodings are not supposed to be turned into string
+    return buffer;
   }
-  return str_buffer;
+}
 
-
-  /* 
-   FOLLOWING IS HOW API CLIENT PARSES THE BODY 
-   much simpler than above, but requires thorough testing
-  */
-  // // todo: add support for other content types
-  // let parsedResponse;
-  // if (contentTypeHeader?.includes("image/")) {
-  //   const raw = Buffer.from(buffer).toString("base64");
-  //   parsedResponse = `data:${contentTypeHeader};base64,${raw}`;
-  // } else {
-  //   parsedResponse = new TextDecoder().decode(buffer);
-  // }
-
-  // return parsedResponse;
-
-};
 
 export const getContentType = (contentTypeHeader) => {
   return contentTypeHeader?.split(";")[0] ?? null;
