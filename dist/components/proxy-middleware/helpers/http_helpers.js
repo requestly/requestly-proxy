@@ -3,49 +3,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseJsonBody = exports.getContentType = exports.bodyParser = void 0;
+exports.parseJsonBody = exports.getContentType = exports.bodyParser = exports.getEncoding = void 0;
 const charset_1 = __importDefault(require("charset"));
 const mime_types_1 = __importDefault(require("mime-types"));
+const getEncoding = (contentTypeHeader, buffer) => {
+    const encoding = (0, charset_1.default)(contentTypeHeader, buffer) || mime_types_1.default.charset(contentTypeHeader) || "utf8";
+    return encoding;
+};
+exports.getEncoding = getEncoding;
 const bodyParser = (contentTypeHeader, buffer) => {
-    let inherentEncoding = (0, charset_1.default)(contentTypeHeader) || mime_types_1.default.charset(contentTypeHeader);
-    let str_buffer = null;
-    const isEncodingValid = (givenEncoding) => givenEncoding && Buffer.isEncoding(givenEncoding);
-    const setBufferString = (givenEncoding) => (str_buffer = buffer.toString(givenEncoding));
-    if (isEncodingValid(inherentEncoding)) {
-        setBufferString(inherentEncoding);
+    const encoding = (0, exports.getEncoding)(contentTypeHeader, buffer);
+    try {
+        return buffer.toString(encoding);
     }
-    else {
-        const mostCommonEncodings = [
-            "utf8",
-            "utf16le",
-            "ascii",
-            "ucs2",
-            "base64",
-            "latin1",
-            "binary",
-            "hex",
-        ];
-        mostCommonEncodings.every((newPossibleEncoding) => {
-            if (isEncodingValid(newPossibleEncoding)) {
-                setBufferString(newPossibleEncoding);
-                return false;
-            }
-        });
+    catch (error) {
+        // some encodings are not supposed to be turned into string
+        return buffer;
     }
-    return str_buffer;
-    /*
-     FOLLOWING IS HOW API CLIENT PARSES THE BODY
-     much simpler than above, but requires thorough testing
-    */
-    // // todo: add support for other content types
-    // let parsedResponse;
-    // if (contentTypeHeader?.includes("image/")) {
-    //   const raw = Buffer.from(buffer).toString("base64");
-    //   parsedResponse = `data:${contentTypeHeader};base64,${raw}`;
-    // } else {
-    //   parsedResponse = new TextDecoder().decode(buffer);
-    // }
-    // return parsedResponse;
 };
 exports.bodyParser = bodyParser;
 const getContentType = (contentTypeHeader) => {
