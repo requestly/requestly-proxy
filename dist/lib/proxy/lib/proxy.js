@@ -1135,7 +1135,6 @@ Proxy.prototype._onRequestData = function (ctx, chunk, callback) {
             if (err) {
                 return callback(err);
             }
-            chunk = newChunk;
             return callback(null, newChunk);
         });
     }, function (err) {
