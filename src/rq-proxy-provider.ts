@@ -8,8 +8,8 @@ class RQProxyProvider {
     static rqProxyInstance:any = null;
 
     // TODO: rulesDataSource can be static here
-    static createInstance = (proxyConfig: ProxyConfig, rulesDataSource: IRulesDataSource, loggerService: ILoggerService, initialCustomState?: IInitialState) => {
-        RQProxyProvider.rqProxyInstance = new RQProxy(proxyConfig, rulesDataSource, loggerService, initialCustomState);
+    static createInstance = (proxyConfig: ProxyConfig, rulesDataSource: IRulesDataSource, loggerService: ILoggerService, initialGlobalState?: IInitialState) => {
+        RQProxyProvider.rqProxyInstance = new RQProxy(proxyConfig, rulesDataSource, loggerService, initialGlobalState);
     }
 
     static getInstance = (): RQProxy => {

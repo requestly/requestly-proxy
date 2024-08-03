@@ -14,19 +14,19 @@ class RQProxy {
 
     rulesHelper: RulesHelper;
     loggerService: ILoggerService;
-    customGlobalState: State;
+    globalState: State;
 
     constructor(
         proxyConfig: ProxyConfig, 
         rulesDataSource: IRulesDataSource, 
         loggerService: ILoggerService,
-        initialCustomState?: IInitialState
+        initialGlobalState?: IInitialState
     ) {
         this.initProxy(proxyConfig);
 
         this.rulesHelper = new RulesHelper(rulesDataSource);
         this.loggerService = loggerService;
-        this.customGlobalState = new State(initialCustomState);
+        this.globalState = new State(initialGlobalState);
     }
 
     initProxy = (proxyConfig: ProxyConfig) => {
@@ -50,7 +50,7 @@ class RQProxy {
                     console.log(err);
                 } else {
                     console.log("Proxy Started");
-                    this.proxyMiddlewareManager = new ProxyMiddlewareManager(this.proxy, proxyConfig, this.rulesHelper, this.loggerService, null, this.customGlobalState);
+                    this.proxyMiddlewareManager = new ProxyMiddlewareManager(this.proxy, proxyConfig, this.rulesHelper, this.loggerService, null, this.globalState);
                     this.proxyMiddlewareManager.init();
                 }
             }
