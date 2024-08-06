@@ -5,7 +5,7 @@ import {
 } from "@requestly/requestly-core";
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
-import { getFunctionFromString } from "../../../../utils";
+import { executeUserFunction, getFunctionFromString } from "../../../../utils";
 
 const process_modify_request_action = (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST_END];
@@ -34,7 +34,7 @@ const modify_request_using_code = async (action, ctx) => {
   let userFunction = null;
   let sharedState = ctx.customGlobalState.getSharedStateCopy();
   try {
-    const res = getFunctionFromString(action.response,sharedState);
+    const res = getFunctionFromString(action.request,sharedState);
     userFunction = res.func;
     sharedState = res.sharedState;
   } catch (error) {
@@ -76,7 +76,7 @@ const modify_request_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
-    finalResponse = await executeUserFunction(ctx, userFunction, args, sharedState)
+    finalRequest = await executeUserFunction(ctx, userFunction, args, sharedState)
 
     if (finalRequest && typeof finalRequest === "string") {
       return modify_request(ctx, finalRequest);
