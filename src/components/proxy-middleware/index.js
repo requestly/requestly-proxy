@@ -29,6 +29,7 @@ export const MIDDLEWARE_TYPE = {
   RULES: "RULES",
   LOGGER: "LOGGER",
   SSL_CERT: "SSL_CERT",
+  GLOBAL_STATE: "GLOBAL_STATE", // SEEMS UNUSUED, BUT ADDING FOR COMPLETENESS
 };
 
 class ProxyMiddlewareManager {
@@ -37,7 +38,8 @@ class ProxyMiddlewareManager {
     proxyConfig,
     rulesHelper,
     loggerService,
-    sslConfigFetcher
+    sslConfigFetcher,
+    customGlobalState
   ) {
     /*
     {
@@ -57,8 +59,10 @@ class ProxyMiddlewareManager {
 
     this.sslConfigFetcher = sslConfigFetcher;
     // this.sslProxyingManager = new SSLProxyingManager(sslConfigFetcher);
+    this.customGlobalState = customGlobalState;
   }
 
+  /* NOT USEFUL */
   init_config = (config = {}) => {
     Object.keys(MIDDLEWARE_TYPE).map((middleware_key) => {
       this.config[middleware_key] =
@@ -131,6 +135,8 @@ class ProxyMiddlewareManager {
         ctx,
         this.rulesHelper
       );
+      
+      ctx.customGlobalState = this.customGlobalState;
 
       ctx.onError(async function (ctx, err, kind, callback) {
         // Should only modify response body & headers
