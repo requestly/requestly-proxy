@@ -1,5 +1,6 @@
 import { types } from "util";
 import ConsoleCapture from "capture-console-logs";
+import GlobalStateProvider from "../components/proxy-middleware/middlewares/state";
 
 // currently expecting sharedState to be copy NOT a reference. For use with the function below
 export const getFunctionFromString = function (functionStringEscaped, sharedState = {}) {
@@ -32,8 +33,7 @@ export async function executeUserFunction(ctx, generatedFunction, args, sharedSt
      * 
      * But we are using it here to ensure that the logic is obvious when we read the code.
      */
-    console.log("DBG: customGlobalState", JSON.stringify(ctx.customGlobalState, null, 2));
-    ctx.customGlobalState?.setSharedState(sharedState);
+    GlobalStateProvider.getInstance().setSharedState(sharedState);
 
     if (typeof finalResponse === "object") {
         finalResponse = JSON.stringify(finalResponse);

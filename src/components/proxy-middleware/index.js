@@ -39,7 +39,6 @@ class ProxyMiddlewareManager {
     rulesHelper,
     loggerService,
     sslConfigFetcher,
-    customGlobalState
   ) {
     /*
     {
@@ -59,7 +58,6 @@ class ProxyMiddlewareManager {
 
     this.sslConfigFetcher = sslConfigFetcher;
     // this.sslProxyingManager = new SSLProxyingManager(sslConfigFetcher);
-    this.customGlobalState = customGlobalState;
   }
 
   /* NOT USEFUL */
@@ -135,8 +133,6 @@ class ProxyMiddlewareManager {
         ctx,
         this.rulesHelper
       );
-      
-      ctx.customGlobalState = this.customGlobalState;
 
       ctx.onError(async function (ctx, err, kind, callback) {
         // Should only modify response body & headers

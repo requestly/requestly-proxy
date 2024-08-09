@@ -1,13 +1,16 @@
 import {cloneDeep} from 'lodash';
-import IInitialState from '../../interfaces/state';
 
-export default class State {
-    protected state: IInitialState;
-    constructor(initialState?: IInitialState) {
+interface IState extends Record<string, any> {
+    sharedState?: Record<string, any>;
+    variables?: Record<string, any>;
+}
+
+export class State {
+    private state: IState;
+    constructor(sharedState: Record<string, any>, envVars: Record<string, any>) {
         this.state = {
-            variables: {},
-            sharedState: {},
-            ...initialState
+            variables: envVars,
+            sharedState,
         };
     }
 
@@ -33,5 +36,24 @@ export default class State {
 
     getVariablesCopy() {
         return cloneDeep(this.state.variables);
+    }
+}
+
+export default class GlobalStateProvider {
+    private static instance: State
+    static initInstance(sharedState: Record<string, any> = {}, envVars: Record<string, any> = {}) {
+        if (!GlobalStateProvider.instance) {
+            GlobalStateProvider.instance = new State(sharedState ?? {}, envVars ?? {});
+        }
+
+        return GlobalStateProvider.instance;
+    }
+
+    static getInstance() {
+        if (!GlobalStateProvider.instance) {
+          console.error("[GlobalStateProvider]", "Init first");
+        }
+
+        return GlobalStateProvider.instance;
     }
 }

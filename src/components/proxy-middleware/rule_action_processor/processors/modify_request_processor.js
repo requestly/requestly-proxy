@@ -32,7 +32,7 @@ const modify_request = (ctx, new_req) => {
 
 const modify_request_using_code = async (action, ctx) => {
   let userFunction = null;
-  let sharedState = ctx.customGlobalState.getSharedStateCopy();
+  let sharedState = GlobalStateProvider.getInstance().getSharedStateCopy();
   try {
     const res = getFunctionFromString(action.request,sharedState);
     userFunction = res.func;

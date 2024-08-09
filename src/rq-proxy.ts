@@ -5,7 +5,7 @@ import RulesHelper from "./utils/helpers/rules-helper";
 import ProxyMiddlewareManager from "./components/proxy-middleware";
 import ILoggerService from "./components/interfaces/logger-service";
 import IInitialState from "./components/interfaces/state";
-import State from "./components/proxy-middleware/middlewares/state";
+import GlobalStateProvider, {State} from "./components/proxy-middleware/middlewares/state";
 
 
 class RQProxy {
@@ -26,7 +26,7 @@ class RQProxy {
 
         this.rulesHelper = new RulesHelper(rulesDataSource);
         this.loggerService = loggerService;
-        this.globalState = new State(initialGlobalState);
+        this.globalState = GlobalStateProvider.initInstance(initialGlobalState?.sharedState ?? {}, initialGlobalState?.variables ?? {});
     }
 
     initProxy = (proxyConfig: ProxyConfig) => {
@@ -50,7 +50,7 @@ class RQProxy {
                     console.log(err);
                 } else {
                     console.log("Proxy Started");
-                    this.proxyMiddlewareManager = new ProxyMiddlewareManager(this.proxy, proxyConfig, this.rulesHelper, this.loggerService, null, this.globalState);
+                    this.proxyMiddlewareManager = new ProxyMiddlewareManager(this.proxy, proxyConfig, this.rulesHelper, this.loggerService, null);
                     this.proxyMiddlewareManager.init();
                 }
             }
