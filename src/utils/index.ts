@@ -10,12 +10,17 @@ export const getFunctionFromString = function (functionStringEscaped) {
 
 /* Expects that the functionString has already been validated to be representing a proper function */
 export async function executeUserFunction(ctx, functionString: string, args) {
-    const generateFunctionWithSharedState = function (functionStringEscaped, sharedState = {}) {
-      return new Function("$sharedState", `return { func: ${functionStringEscaped}, sharedState: $sharedState}`)(sharedState);
+
+    const generateFunctionWithSharedState = function (functionStringEscaped) {
+
+		const SHARED_STATE_VAR_NAME = "$sharedState";
+		
+		const sharedState = GlobalStateProvider.getInstance().getSharedStateCopy();
+    	
+		return new Function(`${SHARED_STATE_VAR_NAME}`, `return { func: ${functionStringEscaped}, updatedSharedState: ${SHARED_STATE_VAR_NAME}}`)(sharedState);
     };
 
-    const sharedState = GlobalStateProvider.getInstance().getSharedStateCopy();
-    const {func: generatedFunction, sharedState: updatedSharedStateRef} = generateFunctionWithSharedState(functionString, sharedState);
+    const {func: generatedFunction, updatedSharedState} = generateFunctionWithSharedState(functionString);
     
     const consoleCapture = new ConsoleCapture()
     consoleCapture.start(true)
@@ -39,7 +44,7 @@ export async function executeUserFunction(ctx, functionString: string, args) {
      * 
      * But we are using it here to make the data flow obvious as we read this code.
      */
-    GlobalStateProvider.getInstance().setSharedState(updatedSharedStateRef);
+    GlobalStateProvider.getInstance().setSharedState(updatedSharedState);
 
     if (typeof finalResponse === "object") {
         finalResponse = JSON.stringify(finalResponse);
