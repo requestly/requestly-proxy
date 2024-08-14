@@ -3,6 +3,7 @@ export namespace MIDDLEWARE_TYPE {
     const RULES: string;
     const LOGGER: string;
     const SSL_CERT: string;
+    const GLOBAL_STATE: string;
 }
 export default ProxyMiddlewareManager;
 declare class ProxyMiddlewareManager {

@@ -33,9 +33,11 @@ exports.MIDDLEWARE_TYPE = {
     RULES: "RULES",
     LOGGER: "LOGGER",
     SSL_CERT: "SSL_CERT",
+    GLOBAL_STATE: "GLOBAL_STATE", // SEEMS UNUSUED, BUT ADDING FOR COMPLETENESS
 };
 class ProxyMiddlewareManager {
     constructor(proxy, proxyConfig, rulesHelper, loggerService, sslConfigFetcher) {
+        /* NOT USEFUL */
         this.init_config = (config = {}) => {
             Object.keys(exports.MIDDLEWARE_TYPE).map((middleware_key) => {
                 this.config[middleware_key] =
