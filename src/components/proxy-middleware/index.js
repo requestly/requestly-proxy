@@ -29,6 +29,7 @@ export const MIDDLEWARE_TYPE = {
   RULES: "RULES",
   LOGGER: "LOGGER",
   SSL_CERT: "SSL_CERT",
+  GLOBAL_STATE: "GLOBAL_STATE", // SEEMS UNUSUED, BUT ADDING FOR COMPLETENESS
 };
 
 class ProxyMiddlewareManager {
@@ -37,7 +38,7 @@ class ProxyMiddlewareManager {
     proxyConfig,
     rulesHelper,
     loggerService,
-    sslConfigFetcher
+    sslConfigFetcher,
   ) {
     /*
     {
@@ -59,6 +60,7 @@ class ProxyMiddlewareManager {
     // this.sslProxyingManager = new SSLProxyingManager(sslConfigFetcher);
   }
 
+  /* NOT USEFUL */
   init_config = (config = {}) => {
     Object.keys(MIDDLEWARE_TYPE).map((middleware_key) => {
       this.config[middleware_key] =

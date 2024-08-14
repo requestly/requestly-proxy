@@ -5,10 +5,7 @@ import {
 } from "@requestly/requestly-core";
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
-import ConsoleCapture from "capture-console-logs";
-import { getFunctionFromString } from "../../../../utils";
-
-const { types } = require("util");
+import { executeUserFunction, getFunctionFromString } from "../../../../utils";
 
 const process_modify_request_action = (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST_END];
@@ -76,24 +73,7 @@ const modify_request_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
-    const consoleCapture = new ConsoleCapture()
-    consoleCapture.start(true)
-
-    finalRequest = userFunction(args);
-
-    if (types.isPromise(finalRequest)) {
-      finalRequest = await finalRequest;
-    }
-
-    consoleCapture.stop()
-    const consoleLogs = consoleCapture.getCaptures()
-
-    ctx.rq.consoleLogs.push(...consoleLogs)
-
-    const isRequestJSON = !!args.bodyAsJson;
-    if (typeof finalRequest === "object" && isRequestJSON) {
-      finalRequest = JSON.stringify(finalRequest);
-    }
+    finalRequest = await executeUserFunction(ctx, userFunction, args)
 
     if (finalRequest && typeof finalRequest === "string") {
       return modify_request(ctx, finalRequest);

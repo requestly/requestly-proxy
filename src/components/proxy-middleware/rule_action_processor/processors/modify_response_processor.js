@@ -7,11 +7,8 @@ import { getResponseContentTypeHeader, getResponseHeaders, get_request_url } fro
 import { build_action_processor_response, build_post_process_data } from "../utils";
 import fs from "fs";
 import { getContentType, parseJsonBody } from "../../helpers/http_helpers";
-import ConsoleCapture from "capture-console-logs";
-import { getFunctionFromString } from "../../../../utils";
+import { executeUserFunction, getFunctionFromString } from "../../../../utils";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "../../constants";
-
-const { types } = require("util");
 
 const process_modify_response_action = async (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST,PROXY_HANDLER_TYPE.ON_RESPONSE_END, PROXY_HANDLER_TYPE.ON_ERROR];
@@ -144,23 +141,7 @@ const modify_response_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
-    const consoleCapture = new ConsoleCapture()
-    consoleCapture.start(true)
-
-    finalResponse = userFunction(args);
-
-    if (types.isPromise(finalResponse)) {
-      finalResponse = await finalResponse;
-    }
-
-    consoleCapture.stop()
-    const consoleLogs = consoleCapture.getCaptures()
-    
-    ctx.rq.consoleLogs.push(...consoleLogs)
-
-    if (typeof finalResponse === "object") {
-      finalResponse = JSON.stringify(finalResponse);
-    }
+    finalResponse = await executeUserFunction(ctx, action.response, args)
 
     if (finalResponse && typeof finalResponse === "string") {
       return modify_response(ctx, finalResponse, action.statusCode);
