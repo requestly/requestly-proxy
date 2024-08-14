@@ -9,7 +9,6 @@ import fs from "fs";
 import { getContentType, parseJsonBody } from "../../helpers/http_helpers";
 import { executeUserFunction, getFunctionFromString } from "../../../../utils";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "../../constants";
-import GlobalStateProvider from "../../middlewares/state";
 
 const process_modify_response_action = async (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST,PROXY_HANDLER_TYPE.ON_RESPONSE_END, PROXY_HANDLER_TYPE.ON_ERROR];
@@ -99,12 +98,8 @@ const modify_response_using_local = (action, ctx) => {
 
 const modify_response_using_code = async (action, ctx) => {
   let userFunction = null;
-  let sharedState = GlobalStateProvider.getInstance().getSharedStateCopy();
-  // let sharedState = ProxyGlobal.getSharedStateCopy();
   try {
-    const res = getFunctionFromString(action.response,sharedState);
-    userFunction = res.func;
-    sharedState = res.sharedState;
+    userFunction = getFunctionFromString(action.response);
   } catch (error) {
     // User has provided an invalid function
     return modify_response(
@@ -146,7 +141,7 @@ const modify_response_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
-    finalResponse = await executeUserFunction(ctx, userFunction, args, sharedState)
+    finalResponse = await executeUserFunction(ctx, action.response, args)
 
     if (finalResponse && typeof finalResponse === "string") {
       return modify_response(ctx, finalResponse, action.statusCode);

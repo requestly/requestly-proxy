@@ -32,11 +32,8 @@ const modify_request = (ctx, new_req) => {
 
 const modify_request_using_code = async (action, ctx) => {
   let userFunction = null;
-  let sharedState = GlobalStateProvider.getInstance().getSharedStateCopy();
   try {
-    const res = getFunctionFromString(action.request,sharedState);
-    userFunction = res.func;
-    sharedState = res.sharedState;
+    userFunction = getFunctionFromString(action.request);
   } catch (error) {
     // User has provided an invalid function
     return modify_request(
@@ -76,7 +73,7 @@ const modify_request_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
-    finalRequest = await executeUserFunction(ctx, userFunction, args, sharedState)
+    finalRequest = await executeUserFunction(ctx, userFunction, args)
 
     if (finalRequest && typeof finalRequest === "string") {
       return modify_request(ctx, finalRequest);
