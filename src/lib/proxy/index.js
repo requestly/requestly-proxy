@@ -1,5 +1,5 @@
-"use strict";
+import DefaultExport, {Proxy, PROXY_HANDLER_TYPE, gunzip, wildcard} from "./lib/proxy"
 
-import Proxy from "./lib/proxy"
+export default DefaultExport;
 
-export default Proxy
+export {Proxy, PROXY_HANDLER_TYPE, gunzip, wildcard}
