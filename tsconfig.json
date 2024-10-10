@@ -1,9 +1,10 @@
 {
   "compilerOptions": {                        
-    "target": "es6",                               
-    "module": "commonjs",                           
+    "target": "ES2018",                               
+    "module": "commonjs", 
     "outDir": "./dist/",                         
     "moduleResolution": "node",
+    "verbatimModuleSyntax": false,
     "esModuleInterop": true,        
     "allowJs": true,    
     "declaration": true,

@@ -7,7 +7,7 @@
  */
 const HOSTNAME_REGEX = /^(.+)(\.[^\.]{4,}(\.[^\.]{1,3})*\.[^\.]+)$/;
 
-module.exports = {
+const wildcaredMiddleware = {
   onCertificateRequired: function (hostname, callback) {
     var rootHost = hostname;
     if (HOSTNAME_REGEX.test(hostname)) {
@@ -20,3 +20,5 @@ module.exports = {
     });
   },
 };
+
+module.exports = wildcaredMiddleware;

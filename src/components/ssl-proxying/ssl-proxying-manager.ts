@@ -2,7 +2,7 @@
 // import BaseConfigFetcher from "renderer/lib/fetcher/base";
 // TODO: @sahil fix this by adding type.d.ts file
 //@ts-ignore
-import { RULE_PROCESSOR } from "@requestly/requestly-core";
+// import { RULE_PROCESSOR } from "@requestly/requestly-core";
 
 
 // TODO: @sahil to add this
