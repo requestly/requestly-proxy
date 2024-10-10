@@ -83,7 +83,7 @@ const modify_response_using_local = (action, ctx) => {
         modify_response(ctx, data, action.statusCode);
     }
     catch (err) {
-        console.log("Some Error while reading file");
+        console.log("Error reading file", err);
     }
 };
 const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {

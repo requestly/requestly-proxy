@@ -92,7 +92,7 @@ const modify_response_using_local = (action, ctx) => {
     data = fs.readFileSync(action.response, "utf-8");
     modify_response(ctx, data, action.statusCode);
   } catch (err) {
-    console.log("Some Error while reading file");
+    console.log("Error reading file", err)
   }
 };
 
