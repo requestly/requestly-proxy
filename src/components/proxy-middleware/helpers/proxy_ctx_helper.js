@@ -1,10 +1,3 @@
-// TODO: Removing this for now
-// import {
-//   extractUrlComponent,
-//   getQueryParamsMap,
-// } from "../../../../../../../common/components/utils/utils";
-// const CONSTANTS = require("../../../../../../../common/constants");
-
 import { 
   CONSTANTS as GLOBAL_CONSTANTS,
 } from "@requestly/requestly-core"

@@ -1,3 +1,5 @@
 "use strict";
 
-module.exports = require("./lib/proxy");
+import Proxy from "./lib/proxy"
+
+export default Proxy
