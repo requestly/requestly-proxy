@@ -22,15 +22,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -39,7 +30,7 @@ const axios = require("axios");
 const parser = require("ua-parser-js");
 const fs_1 = __importDefault(require("fs"));
 const Sentry = __importStar(require("@sentry/browser"));
-const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, void 0, function* () {
+const handleMixedResponse = async (ctx, destinationUrl) => {
     var _a, _b, _c;
     // Handling mixed response from safari
     let user_agent_str = null;
@@ -50,7 +41,7 @@ const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, v
         if (user_agent === "Safari" ||
             !LOCAL_DOMAINS.some((domain) => destinationUrl.includes(domain))) {
             try {
-                const resp = yield axios.get(destinationUrl, {
+                const resp = await axios.get(destinationUrl, {
                     headers: {
                         "Cache-Control": "no-cache",
                     },
@@ -106,5 +97,5 @@ const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, v
         }
     }
     return { status: false };
-});
+};
 exports.default = handleMixedResponse;

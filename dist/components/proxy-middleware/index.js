@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -82,106 +73,100 @@ class ProxyMiddlewareManager {
             const self = this;
             const is_detachable = true;
             const logger_middleware = new logger_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.LOGGER], this.loggerService);
-            const idx = this.init_request_handler((ctx, callback) => __awaiter(this, void 0, void 0, function* () {
+            const idx = this.init_request_handler(async (ctx, callback) => {
                 ctx.rq = new ctx_rq_namespace_1.default();
                 ctx.rq.set_original_request((0, proxy_ctx_helper_1.get_request_options)(ctx));
                 ctx.proxyToServerRequestOptions.rejectUnauthorized = false;
                 // Figure out a way to enable/disable middleware dynamically
                 // instead of re-initing this again
                 const rules_middleware = new rules_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.RULES], ctx, this.rulesHelper);
-                ctx.onError(function (ctx, err, kind, callback) {
-                    return __awaiter(this, void 0, void 0, function* () {
-                        // Should only modify response body & headers
-                        ctx.rq_response_body = "" + kind + ": " + err, "utf8";
-                        const { action_result_objs, continue_request } = yield rules_middleware.on_response(ctx);
-                        // Only modify response if any modify_response action is applied
-                        const modifyResponseActionExist = action_result_objs.some((action_result_obj) => { var _a; return ((_a = action_result_obj === null || action_result_obj === void 0 ? void 0 : action_result_obj.action) === null || _a === void 0 ? void 0 : _a.action) === "modify_response"; });
-                        if (modifyResponseActionExist) {
-                            const statusCode = ctx.rq_response_status_code || 404;
-                            const responseHeaders = (0, proxy_ctx_helper_1.getResponseHeaders)(ctx) || {};
-                            ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], responseHeaders);
-                            ctx.proxyToClientResponse.end(ctx.rq_response_body);
-                            ctx.rq.set_final_response({
-                                status_code: statusCode,
-                                headers: responseHeaders,
-                                body: ctx.rq_response_body,
-                            });
-                            logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
-                        }
-                        return callback();
-                    });
+                ctx.onError(async function (ctx, err, kind, callback) {
+                    // Should only modify response body & headers
+                    ctx.rq_response_body = "" + kind + ": " + err, "utf8";
+                    const { action_result_objs, continue_request } = await rules_middleware.on_response(ctx);
+                    // Only modify response if any modify_response action is applied
+                    const modifyResponseActionExist = action_result_objs.some((action_result_obj) => { var _a; return ((_a = action_result_obj === null || action_result_obj === void 0 ? void 0 : action_result_obj.action) === null || _a === void 0 ? void 0 : _a.action) === "modify_response"; });
+                    if (modifyResponseActionExist) {
+                        const statusCode = ctx.rq_response_status_code || 404;
+                        const responseHeaders = (0, proxy_ctx_helper_1.getResponseHeaders)(ctx) || {};
+                        ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], responseHeaders);
+                        ctx.proxyToClientResponse.end(ctx.rq_response_body);
+                        ctx.rq.set_final_response({
+                            status_code: statusCode,
+                            headers: responseHeaders,
+                            body: ctx.rq_response_body,
+                        });
+                        logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
+                    }
+                    return callback();
                 });
                 let request_body_chunks = [];
-                ctx.onRequestData(function (ctx, chunk, callback) {
-                    return __awaiter(this, void 0, void 0, function* () {
-                        if (chunk) {
-                            request_body_chunks.push(chunk);
-                        }
-                        return callback(null, null); // don't write chunks to client Request
-                    });
+                ctx.onRequestData(async function (ctx, chunk, callback) {
+                    if (chunk) {
+                        request_body_chunks.push(chunk);
+                    }
+                    return callback(null, null); // don't write chunks to client Request
                 });
-                ctx.onRequestEnd(function (ctx, callback) {
-                    return __awaiter(this, void 0, void 0, function* () {
-                        let body = new Buffer.concat(request_body_chunks);
-                        const contentTypeHeader = (0, proxy_ctx_helper_1.getRequestContentTypeHeader)(ctx);
-                        const contentType = (0, http_helpers_1.getContentType)(contentTypeHeader);
-                        const parsedBody = (0, http_helpers_1.bodyParser)(contentTypeHeader, body);
-                        // Request body before any modifications
-                        let pre_final_body = parsedBody || body.toString("utf8");
-                        ctx.rq.set_original_request({ body: pre_final_body });
-                        ctx.rq_request_body = pre_final_body;
-                        if (parsedBody && constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
-                            // Do modifications, if any
-                            const { action_result_objs, continue_request } = yield rules_middleware.on_request_end(ctx);
-                        }
-                        // Use the updated request
-                        ctx.proxyToServerRequest.write(ctx.rq_request_body);
-                        ctx.rq.set_final_request({ body: ctx.rq_request_body });
-                        return callback();
-                    });
+                ctx.onRequestEnd(async function (ctx, callback) {
+                    let body = new Buffer.concat(request_body_chunks);
+                    const contentTypeHeader = (0, proxy_ctx_helper_1.getRequestContentTypeHeader)(ctx);
+                    const contentType = (0, http_helpers_1.getContentType)(contentTypeHeader);
+                    const parsedBody = (0, http_helpers_1.bodyParser)(contentTypeHeader, body);
+                    // Request body before any modifications
+                    let pre_final_body = parsedBody || body.toString("utf8");
+                    ctx.rq.set_original_request({ body: pre_final_body });
+                    ctx.rq_request_body = pre_final_body;
+                    if (parsedBody && constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
+                        // Do modifications, if any
+                        const { action_result_objs, continue_request } = await rules_middleware.on_request_end(ctx);
+                    }
+                    // Use the updated request
+                    ctx.proxyToServerRequest.write(ctx.rq_request_body);
+                    ctx.rq.set_final_request({ body: ctx.rq_request_body });
+                    return callback();
                 });
-                ctx.onResponse((ctx, callback) => __awaiter(this, void 0, void 0, function* () {
+                ctx.onResponse(async (ctx, callback) => {
                     ctx.rq.set_original_response((0, proxy_ctx_helper_1.get_response_options)(ctx));
-                    const { action_result_objs, continue_request: continue_response } = yield rules_middleware.on_response(ctx);
+                    const { action_result_objs, continue_request: continue_response } = await rules_middleware.on_response(ctx);
                     if (continue_response) {
                         return callback();
                     }
-                }));
-                let response_body_chunks = [];
-                ctx.onResponseData(function (ctx, chunk, callback) {
-                    return __awaiter(this, void 0, void 0, function* () {
-                        if (chunk) {
-                            response_body_chunks.push(chunk);
-                        }
-                        return callback(null, null); // don't write chunks to client response
-                    });
                 });
-                ctx.onResponseEnd(function (ctx, callback) {
-                    return __awaiter(this, void 0, void 0, function* () {
-                        let body = new Buffer.concat(response_body_chunks);
-                        const contentTypeHeader = (0, proxy_ctx_helper_1.getResponseContentTypeHeader)(ctx);
-                        const contentType = (0, http_helpers_1.getContentType)(contentTypeHeader);
-                        const parsedBody = (0, http_helpers_1.bodyParser)(contentTypeHeader, body);
+                let response_body_chunks = [];
+                ctx.onResponseData(async function (ctx, chunk, callback) {
+                    if (chunk) {
+                        response_body_chunks.push(chunk);
+                    }
+                    return callback(null, null); // don't write chunks to client response
+                });
+                ctx.onResponseEnd(async function (ctx, callback) {
+                    let body = new Buffer.concat(response_body_chunks);
+                    const contentTypeHeader = (0, proxy_ctx_helper_1.getResponseContentTypeHeader)(ctx);
+                    const contentType = (0, http_helpers_1.getContentType)(contentTypeHeader);
+                    const parsedBody = (0, http_helpers_1.bodyParser)(contentTypeHeader, body);
+                    ctx.rq.set_original_response({ body: parsedBody });
+                    ctx.rq_response_body = body;
+                    ctx.rq_parsed_response_body = parsedBody;
+                    ctx.rq_response_status_code = (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx);
+                    if (constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) && parsedBody) {
+                        ctx.rq_response_body = parsedBody;
                         ctx.rq.set_original_response({ body: parsedBody });
-                        ctx.rq_response_body = body;
-                        ctx.rq_parsed_response_body = parsedBody;
-                        ctx.rq_response_status_code = (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx);
-                        if (constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) && parsedBody) {
-                            ctx.rq_response_body = parsedBody;
-                            ctx.rq.set_original_response({ body: parsedBody });
-                        }
-                        const { action_result_objs, continue_request } = yield rules_middleware.on_response_end(ctx);
-                        const statusCode = ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx);
-                        ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], (0, proxy_ctx_helper_1.getResponseHeaders)(ctx));
-                        ctx.proxyToClientResponse.write(ctx.rq_response_body);
-                        ctx.rq.set_final_response(Object.assign(Object.assign({}, (0, proxy_ctx_helper_1.get_response_options)(ctx)), { status_code: ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx), body: ctx.rq_response_body }));
-                        logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
-                        return callback();
+                    }
+                    const { action_result_objs, continue_request } = await rules_middleware.on_response_end(ctx);
+                    const statusCode = ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx);
+                    ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], (0, proxy_ctx_helper_1.getResponseHeaders)(ctx));
+                    ctx.proxyToClientResponse.write(ctx.rq_response_body);
+                    ctx.rq.set_final_response({
+                        ...(0, proxy_ctx_helper_1.get_response_options)(ctx),
+                        status_code: ctx.rq_response_status_code || (0, proxy_ctx_helper_1.getResponseStatusCode)(ctx),
+                        body: ctx.rq_response_body,
                     });
+                    logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
+                    return callback();
                 });
                 // Remove headers that may conflict
                 delete (0, proxy_ctx_helper_1.getRequestHeaders)(ctx)["content-length"];
-                const { action_result_objs, continue_request } = yield rules_middleware.on_request(ctx);
+                const { action_result_objs, continue_request } = await rules_middleware.on_request(ctx);
                 ctx.rq.set_final_request((0, proxy_ctx_helper_1.get_request_options)(ctx));
                 // TODO: Removing this log for now. Will add this when support is added for upsert in firebase logs.
                 logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.LOADING);
@@ -189,10 +174,10 @@ class ProxyMiddlewareManager {
                 if (continue_request) {
                     return callback();
                 }
-            }), is_detachable);
+            }, is_detachable);
         };
         this.init_ssl_tunneling_handler = () => {
-            this.proxy.onConnect((req, socket, head, callback) => __awaiter(this, void 0, void 0, function* () {
+            this.proxy.onConnect(async (req, socket, head, callback) => {
                 const host = req.url.split(":")[0];
                 const port = req.url.split(":")[1];
                 const origin = `https://${host}`;
@@ -208,29 +193,27 @@ class ProxyMiddlewareManager {
                     port: port,
                     host: host,
                     allowHalfOpen: false,
-                }, function () {
-                    return __awaiter(this, void 0, void 0, function* () {
-                        conn.on("finish", () => {
-                            console.log(`Finish ${host}`);
-                            socket.destroy();
-                            delete global.rq.sslTunnelingSocketsMap[req.url];
-                        });
-                        socket.on("close", () => {
-                            console.log("Close");
-                            conn.end();
-                        });
-                        // socket.on('data', (data) => {
-                        //   // console.log("FROM SOCKET: " + data.toString("ascii") + "\n");
-                        //   console.log("FROM SOCKET: data");
-                        // });
-                        // conn.on('data', (data) => {
-                        //   // console.log("FROM CONN: " + data.toString("ascii") + "\n");
-                        //   console.log("FROM CONN: data");
-                        // });
-                        socket.write("HTTP/1.1 200 OK\r\n\r\n", "UTF-8", function () {
-                            conn.pipe(socket);
-                            socket.pipe(conn);
-                        });
+                }, async function () {
+                    conn.on("finish", () => {
+                        console.log(`Finish ${host}`);
+                        socket.destroy();
+                        delete global.rq.sslTunnelingSocketsMap[req.url];
+                    });
+                    socket.on("close", () => {
+                        console.log("Close");
+                        conn.end();
+                    });
+                    // socket.on('data', (data) => {
+                    //   // console.log("FROM SOCKET: " + data.toString("ascii") + "\n");
+                    //   console.log("FROM SOCKET: data");
+                    // });
+                    // conn.on('data', (data) => {
+                    //   // console.log("FROM CONN: " + data.toString("ascii") + "\n");
+                    //   console.log("FROM CONN: data");
+                    // });
+                    socket.write("HTTP/1.1 200 OK\r\n\r\n", "UTF-8", function () {
+                        conn.pipe(socket);
+                        socket.pipe(conn);
                     });
                 });
                 conn.on("error", function (err) {
@@ -239,7 +222,7 @@ class ProxyMiddlewareManager {
                 socket.on("error", function (err) {
                     filterSocketConnReset(err, "CLIENT_TO_PROXY_SOCKET");
                 });
-            }));
+            });
             // Since node 0.9.9, ECONNRESET on sockets are no longer hidden
             function filterSocketConnReset(err, socketDescription) {
                 if (err.errno === "ECONNRESET") {
