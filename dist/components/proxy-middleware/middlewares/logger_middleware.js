@@ -1,13 +1,10 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const lodash_1 = require("lodash");
-const httpsnippet_1 = __importDefault(require("httpsnippet"));
+// import { cloneDeep } from "lodash";
+// import HTTPSnippet from "httpsnippet";
 const utils_1 = require("../rule_action_processor/utils");
 const harObectCreator_1 = require("../helpers/harObectCreator");
-const url = require("url");
+// const url = require("url");
 class LoggerMiddleware {
     constructor(is_active, loggerService) {
         this.generate_curl_from_har = (requestHarObject) => {
@@ -15,15 +12,14 @@ class LoggerMiddleware {
                 return "";
             }
             let requestCurl = "";
-            try {
-                const harObject = (0, lodash_1.cloneDeep)(requestHarObject);
-                requestCurl = new httpsnippet_1.default(harObject).convert("shell", "curl", {
-                    indent: " ",
-                });
-            }
-            catch (err) {
-                console.error(`LoggerMiddleware.generate_curl_from_har Error: ${err}`);
-            }
+            // try {
+            //   const harObject = cloneDeep(requestHarObject);
+            //   requestCurl = new HTTPSnippet(harObject).convert("shell", "curl", {
+            //     indent: " ",
+            //   });
+            // } catch (err) {
+            //   console.error(`LoggerMiddleware.generate_curl_from_har Error: ${err}`);
+            // }
             return requestCurl;
         };
         this.send_network_log = (ctx, action_result_objs = [], requestState = "") => {

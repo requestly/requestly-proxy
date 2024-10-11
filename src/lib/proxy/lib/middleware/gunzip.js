@@ -2,7 +2,7 @@
 
 var zlib = require("zlib");
 
-module.exports = {
+const gunzipMiddleware = {
   onResponse: function (ctx, callback) {
     if (
       ctx.serverToProxyResponse.headers["content-encoding"] &&
@@ -19,3 +19,5 @@ module.exports = {
     return callback();
   },
 };
+
+module.exports = gunzipMiddleware;
