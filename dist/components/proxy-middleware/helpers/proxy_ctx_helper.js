@@ -1,12 +1,7 @@
 "use strict";
-// TODO: Removing this for now
-// import {
-//   extractUrlComponent,
-//   getQueryParamsMap,
-// } from "../../../../../../../common/components/utils/utils";
-// const CONSTANTS = require("../../../../../../../common/constants");
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getResponseStatusCode = exports.getResponseContentTypeHeader = exports.getResponseHeaders = exports.getRequestContentTypeHeader = exports.getRequestHeaders = exports.get_json_query_params = exports.get_request_options = exports.get_response_options = exports.is_request_preflight = exports.get_original_response_headers = exports.get_original_request_headers = exports.get_request_url = exports.getQueryParamsMap = void 0;
+exports.getResponseStatusCode = exports.getResponseContentTypeHeader = exports.getResponseHeaders = exports.getRequestContentTypeHeader = exports.getRequestHeaders = exports.get_json_query_params = exports.get_request_options = exports.get_response_options = exports.is_request_preflight = exports.get_original_response_headers = exports.get_original_request_headers = exports.get_request_url = void 0;
+exports.getQueryParamsMap = getQueryParamsMap;
 const requestly_core_1 = require("@requestly/requestly-core");
 function extractUrlComponent(url, name) {
     const myUrl = new URL(url);
@@ -49,7 +44,6 @@ function getQueryParamsMap(queryString) {
     });
     return map;
 }
-exports.getQueryParamsMap = getQueryParamsMap;
 const get_request_url = (ctx) => {
     return ((ctx.isSSL ? "https://" : "http://") +
         ctx.clientToProxyRequest.headers.host +
@@ -92,7 +86,10 @@ const get_response_options = (ctx) => {
 };
 exports.get_response_options = get_response_options;
 const get_request_options = (ctx) => {
-    return Object.assign(Object.assign({}, ctx.proxyToServerRequestOptions), { query_params: (0, exports.get_json_query_params)(ctx) });
+    return {
+        ...ctx.proxyToServerRequestOptions,
+        query_params: (0, exports.get_json_query_params)(ctx),
+    };
 };
 exports.get_request_options = get_request_options;
 const get_json_query_params = (ctx) => {

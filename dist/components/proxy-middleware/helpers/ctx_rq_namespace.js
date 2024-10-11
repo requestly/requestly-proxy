@@ -5,7 +5,7 @@ class CtxRQNamespace {
     constructor() {
         this.set_original_request = ({ method = null, path = null, host = null, port = null, headers = null, agent = null, body = null, query_params = null, }) => {
             if (headers) {
-                this.original_request.headers = Object.assign({}, headers);
+                this.original_request.headers = { ...headers };
             }
             this.original_request.method = method || this.original_request.method;
             this.original_request.path = path || this.original_request.path;
@@ -18,7 +18,7 @@ class CtxRQNamespace {
         };
         this.set_original_response = ({ status_code = null, headers = null, body = null, query_params = null, }) => {
             if (headers) {
-                this.original_response.headers = Object.assign({}, headers);
+                this.original_response.headers = { ...headers };
             }
             this.original_response.status_code =
                 status_code || this.original_response.status_code;
@@ -27,7 +27,7 @@ class CtxRQNamespace {
         this.set_final_request = (proxyToServerRequestOptions) => {
             const { method, path, host, port, headers, agent, body, query_params, } = proxyToServerRequestOptions;
             if (headers) {
-                this.final_request.headers = Object.assign({}, headers);
+                this.final_request.headers = { ...headers };
             }
             this.final_request.method = method || this.final_request.method;
             this.final_request.path = path || this.final_request.path;
@@ -41,7 +41,7 @@ class CtxRQNamespace {
         };
         this.set_final_response = ({ status_code = null, headers = null, body = null, }) => {
             if (headers) {
-                this.final_response.headers = Object.assign({}, headers);
+                this.final_response.headers = { ...headers };
             }
             this.final_response.status_code =
                 status_code || this.final_response.status_code;

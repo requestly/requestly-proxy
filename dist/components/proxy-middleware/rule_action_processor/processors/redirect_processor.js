@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -24,7 +15,7 @@ const getRequestOrigin = (ctx) => {
         originalRequestHeaders["origin"] ||
         originalRequestHeaders["ORIGIN"]);
 };
-const process_redirect_action = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
+const process_redirect_action = async (action, ctx) => {
     const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST];
     if (!allowed_handlers.includes(ctx.currentHandler)) {
         return (0, utils_1.build_action_processor_response)(action, false);
@@ -40,7 +31,7 @@ const process_redirect_action = (action, ctx) => __awaiter(void 0, void 0, void 
     else {
         modified_requests_pool_1.default.add(new_url);
     }
-    const { status: isMixedResponse, response_data } = yield (0, handle_mixed_response_1.default)(ctx, new_url);
+    const { status: isMixedResponse, response_data } = await (0, handle_mixed_response_1.default)(ctx, new_url);
     if (isMixedResponse) {
         return (0, utils_1.build_action_processor_response)(action, true, (0, utils_1.build_post_process_data)(response_data.status_code, response_data.headers, response_data.body));
     }
@@ -53,5 +44,5 @@ const process_redirect_action = (action, ctx) => __awaiter(void 0, void 0, void 
         "Access-Control-Allow-Credentials": "true",
         Location: new_url,
     }, null));
-});
+};
 exports.default = process_redirect_action;
