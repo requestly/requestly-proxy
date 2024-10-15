@@ -30,8 +30,9 @@ const axios = require("axios");
 const parser = require("ua-parser-js");
 const fs_1 = __importDefault(require("fs"));
 const Sentry = __importStar(require("@sentry/browser"));
+const magic_bytes_js_1 = require("magic-bytes.js");
 const handleMixedResponse = async (ctx, destinationUrl) => {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e;
     // Handling mixed response from safari
     let user_agent_str = null;
     user_agent_str = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.clientToProxyRequest) === null || _a === void 0 ? void 0 : _a.headers["user-agent"];
@@ -71,14 +72,22 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
     if (destinationUrl === null || destinationUrl === void 0 ? void 0 : destinationUrl.startsWith("file://")) {
         const path = destinationUrl.slice(7);
         try {
-            // utf-8 is common assumption, but this introduces edge cases
-            const data = fs_1.default.readFileSync(path, "utf-8");
+            const buffers = fs_1.default.readFileSync(path);
+            const mimeType = ((_e = (_d = (0, magic_bytes_js_1.filetypeinfo)(buffers)) === null || _d === void 0 ? void 0 : _d[0]) === null || _e === void 0 ? void 0 : _e.mime) || null; // default to text/plain if mime type is not found
+            const bodyContent = buffers.toString("utf-8");
+            const headers = mimeType ? {
+                "Content-Type": mimeType,
+                "Content-Length": Buffer.byteLength(bodyContent),
+                "Cache-Control": "no-cache"
+            } : {
+                "Cache-Control": "no-cache"
+            };
             return {
                 status: true,
                 response_data: {
-                    headers: { "Cache-Control": "no-cache" },
+                    headers,
                     status_code: 200,
-                    body: data,
+                    body: buffers.toString("utf-8"), // assuming utf-8 encoding
                 },
             };
         }

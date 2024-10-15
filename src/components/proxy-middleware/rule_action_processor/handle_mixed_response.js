@@ -2,6 +2,7 @@ const axios = require("axios");
 const parser = require("ua-parser-js");
 import fs from "fs";
 import * as Sentry from "@sentry/browser";
+import {filetypeinfo} from "magic-bytes.js";
 
 const handleMixedResponse = async (ctx, destinationUrl) => {
   // Handling mixed response from safari
@@ -47,14 +48,22 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
   if(destinationUrl?.startsWith("file://")) {
     const path = destinationUrl.slice(7)
     try {
-      // utf-8 is common assumption, but this introduces edge cases
-      const data = fs.readFileSync(path, "utf-8"); 
+      const buffers = fs.readFileSync(path);
+      const mimeType = filetypeinfo(buffers)?.[0]?.mime || null; // default to text/plain if mime type is not found
+      const bodyContent = buffers.toString("utf-8")
+      const headers = mimeType ? {
+        "Content-Type": mimeType,
+        "Content-Length": Buffer.byteLength(bodyContent),
+        "Cache-Control": "no-cache"
+      } : {
+        "Cache-Control": "no-cache"
+      }
       return {
         status: true,
         response_data: {
-          headers: { "Cache-Control": "no-cache" },
+          headers,
           status_code: 200,
-          body: data,
+          body: buffers.toString("utf-8"), // assuming utf-8 encoding
         },
       };
     } catch (err) {
