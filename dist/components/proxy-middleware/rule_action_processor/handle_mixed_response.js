@@ -30,9 +30,9 @@ const axios = require("axios");
 const parser = require("ua-parser-js");
 const fs_1 = __importDefault(require("fs"));
 const Sentry = __importStar(require("@sentry/browser"));
-const magic_bytes_js_1 = require("magic-bytes.js");
+const mime = require('mime-types');
 const handleMixedResponse = async (ctx, destinationUrl) => {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c;
     // Handling mixed response from safari
     let user_agent_str = null;
     user_agent_str = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.clientToProxyRequest) === null || _a === void 0 ? void 0 : _a.headers["user-agent"];
@@ -73,8 +73,8 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
         const path = destinationUrl.slice(7);
         try {
             const buffers = fs_1.default.readFileSync(path);
-            const mimeType = ((_e = (_d = (0, magic_bytes_js_1.filetypeinfo)(buffers)) === null || _d === void 0 ? void 0 : _d[0]) === null || _e === void 0 ? void 0 : _e.mime) || null; // default to text/plain if mime type is not found
-            const bodyContent = buffers.toString("utf-8");
+            const mimeType = mime.lookup(path);
+            const bodyContent = buffers.toString("utf-8"); // assuming utf-8 encoding
             const headers = mimeType ? {
                 "Content-Type": mimeType,
                 "Content-Length": Buffer.byteLength(bodyContent),
@@ -82,6 +82,7 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
             } : {
                 "Cache-Control": "no-cache"
             };
+            console.log("DBG: json me headers, body and mime", { headers, bodyContent, mimeType });
             return {
                 status: true,
                 response_data: {
