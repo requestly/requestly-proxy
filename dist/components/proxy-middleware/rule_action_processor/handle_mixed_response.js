@@ -82,7 +82,6 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
             } : {
                 "Cache-Control": "no-cache"
             };
-            console.log("DBG: json me headers, body and mime", { headers, bodyContent, mimeType });
             return {
                 status: true,
                 response_data: {
