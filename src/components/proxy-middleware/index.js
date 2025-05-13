@@ -348,7 +348,7 @@ class ProxyMiddlewareManager {
   init_handlers = () => {
     this.proxy.onRequestHandlers = [];
     this.proxy.onConnectHandlers = [];
-    this.proxy.use(Proxy.gunzip);
+    this.proxy.use(Proxy.decompress);
 
     // this.init_ssl_tunneling_handler();
     this.init_amiusing_handler();
