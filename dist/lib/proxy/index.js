@@ -23,10 +23,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.wildcard = exports.gunzip = exports.PROXY_HANDLER_TYPE = exports.Proxy = void 0;
+exports.wildcard = exports.decompress = exports.gunzip = exports.PROXY_HANDLER_TYPE = exports.Proxy = void 0;
 const proxy_1 = __importStar(require("./lib/proxy"));
 Object.defineProperty(exports, "Proxy", { enumerable: true, get: function () { return proxy_1.Proxy; } });
 Object.defineProperty(exports, "PROXY_HANDLER_TYPE", { enumerable: true, get: function () { return proxy_1.PROXY_HANDLER_TYPE; } });
 Object.defineProperty(exports, "gunzip", { enumerable: true, get: function () { return proxy_1.gunzip; } });
+Object.defineProperty(exports, "decompress", { enumerable: true, get: function () { return proxy_1.decompress; } });
 Object.defineProperty(exports, "wildcard", { enumerable: true, get: function () { return proxy_1.wildcard; } });
 exports.default = proxy_1.default;
