@@ -9,9 +9,6 @@ import fs from "fs";
 import { getContentType, parseJsonBody } from "../../helpers/http_helpers";
 import { executeUserFunction, getFunctionFromString } from "../../../../utils";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "../../constants";
-import mime from "mime-types";
-
-console.log("DBG-3: testing")
 
 const process_modify_response_action = async (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST,PROXY_HANDLER_TYPE.ON_RESPONSE_END, PROXY_HANDLER_TYPE.ON_ERROR];
@@ -20,7 +17,6 @@ const process_modify_response_action = async (action, ctx) => {
     return build_action_processor_response(action, false);
   }
 
-  console.log("DBG-3: Action IN PROCESS_MODIFY_RESPONSE : ", JSON.stringify({action}, null, 2));
   if(ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST) {
     if(action.serveWithoutRequest ) {
       if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
@@ -49,7 +45,6 @@ const process_modify_response_action = async (action, ctx) => {
       }
 
       if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
-        console.log("DBG-3: local file response without request")
         let contentType = "text/plain", finalBody;
 
         try {
@@ -61,13 +56,16 @@ const process_modify_response_action = async (action, ctx) => {
         }
 
         try {
-          finalBody =  JSON.parse(finalBody)
+          // checking if json parsable
+          // not serving the parsed json because it then needs to take ownership of indentation 
+          // so modifed data is visually different between before request vs after response
+          const _tmp =  JSON.parse(finalBody)
           contentType =  "application/json";
         } catch {
-          contentType = mime.lookup(action.response) // guesses content type based on file extension
+          contentType = "text/plain" // fallback but could be made smarter. mime.lookup wasn't good enough
         }
         const status = action.statusCode || 200
-        console.log("DBG-3: local file response without request", JSON.stringify({finalBody, contentType}, null, 2))
+
         const finalHeaders = {"Content-Type": contentType}
         modify_response(ctx, finalBody, status)
         return build_action_processor_response(
