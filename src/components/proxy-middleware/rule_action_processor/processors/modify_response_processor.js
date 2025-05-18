@@ -9,6 +9,9 @@ import fs from "fs";
 import { getContentType, parseJsonBody } from "../../helpers/http_helpers";
 import { executeUserFunction, getFunctionFromString } from "../../../../utils";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "../../constants";
+import mime from "mime-types";
+
+console.log("DBG-3: testing")
 
 const process_modify_response_action = async (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST,PROXY_HANDLER_TYPE.ON_RESPONSE_END, PROXY_HANDLER_TYPE.ON_ERROR];
@@ -17,32 +20,66 @@ const process_modify_response_action = async (action, ctx) => {
     return build_action_processor_response(action, false);
   }
 
+  console.log("DBG-3: Action IN PROCESS_MODIFY_RESPONSE : ", JSON.stringify({action}, null, 2));
   if(ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST) {
-    if(
-      action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC 
-      && action.serveWithoutRequest 
-    ) {
-      let contentType, finalBody;
-      try {
-        finalBody =  JSON.parse(action.response)
-        contentType =  "application/json";
-      } catch {
-        contentType = "text/plain"
-        finalBody = action.response
-      }
-      const status = action.statusCode || 200
-      
-      const finalHeaders = {"Content-Type": contentType}
-      modify_response(ctx, finalBody, status)
-      return build_action_processor_response(
-        action, 
-        true, 
-        build_post_process_data(
-          status,
-          finalHeaders,
-          finalBody,
+    if(action.serveWithoutRequest ) {
+      if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+        console.log("DBG-3: static response without request")
+        let contentType, finalBody;
+        try {
+          finalBody =  JSON.parse(action.response)
+          contentType =  "application/json";
+        } catch {
+          contentType = "text/plain"
+          finalBody = action.response
+        }
+        const status = action.statusCode || 200
+        
+        const finalHeaders = {"Content-Type": contentType}
+        modify_response(ctx, finalBody, status)
+        return build_action_processor_response(
+          action, 
+          true, 
+          build_post_process_data(
+            status,
+            finalHeaders,
+            finalBody,
+          )
         )
-      )
+      }
+
+      if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
+        console.log("DBG-3: local file response without request")
+        let contentType = "text/plain", finalBody;
+
+        try {
+          finalBody = fs.readFileSync(action.response, "utf-8");
+        } catch (err) {
+          console.log("Error reading file", err)
+          // bypass modification for now if error reading file
+          return build_action_processor_response(action, false);
+        }
+
+        try {
+          finalBody =  JSON.parse(finalBody)
+          contentType =  "application/json";
+        } catch {
+          contentType = mime.lookup(action.response) // guesses content type based on file extension
+        }
+        const status = action.statusCode || 200
+        console.log("DBG-3: local file response without request", JSON.stringify({finalBody, contentType}, null, 2))
+        const finalHeaders = {"Content-Type": contentType}
+        modify_response(ctx, finalBody, status)
+        return build_action_processor_response(
+          action, 
+          true, 
+          build_post_process_data(
+            status,
+            finalHeaders,
+            finalBody,
+          )
+        )
+      }
     }
 
     return build_action_processor_response(action, false);
