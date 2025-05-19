@@ -36,6 +36,6 @@ const get_success_actions_from_action_results = (action_result_objs = []) => {
 };
 exports.get_success_actions_from_action_results = get_success_actions_from_action_results;
 const get_file_contents = (file_path) => {
-    return fs_1.default.readFileSync(action.response, "utf-8");
+    return fs_1.default.readFileSync(file_path, "utf-8");
 };
 exports.get_file_contents = get_file_contents;
