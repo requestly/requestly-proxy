@@ -18,66 +18,44 @@ const process_modify_response_action = async (action, ctx) => {
   }
 
   if(ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST) {
-    if(action.serveWithoutRequest ) {
-      if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
-        console.log("DBG-3: static response without request")
-        let contentType, finalBody;
-        try {
-          finalBody =  JSON.parse(action.response)
-          contentType =  "application/json";
-        } catch {
-          contentType = "text/plain"
-          finalBody = action.response
-        }
-        const status = action.statusCode || 200
-        
-        const finalHeaders = {"Content-Type": contentType}
-        modify_response(ctx, finalBody, status)
-        return build_action_processor_response(
-          action, 
-          true, 
-          build_post_process_data(
-            status,
-            finalHeaders,
-            finalBody,
-          )
-        )
-      }
-
+    if(action.serveWithoutRequest) {
+      let contentType, finalBody;
       if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
-        let contentType = "text/plain", finalBody;
-
         try {
           finalBody = fs.readFileSync(action.response, "utf-8");
         } catch (err) {
           console.log("Error reading file", err)
-          // bypass modification for now if error reading file
           return build_action_processor_response(action, false);
         }
-
-        try {
-          // checking if json parsable
-          // not serving the parsed json because it then needs to take ownership of indentation 
-          // so modifed data is visually different between before request vs after response
-          const _tmp =  JSON.parse(finalBody)
-          contentType =  "application/json";
-        } catch {
-          contentType = "text/plain" // fallback but could be made smarter. mime.lookup wasn't good enough
-        }
-        const status = action.statusCode || 200
-
-        const finalHeaders = {"Content-Type": contentType}
-        modify_response(ctx, finalBody, status)
-        return build_action_processor_response(
-          action, 
-          true, 
-          build_post_process_data(
-            status,
-            finalHeaders,
-            finalBody,
-          )
-        )
+      } else if (action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+        finalBody = action.response
+      } else {
+        return build_action_processor_response(action, false);
       }
+
+      try {
+        const parsedResponse = JSON.parse(finalBody)
+        if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+          finalBody = parsedResponse;
+        }
+        contentType =  "application/json";
+      } catch {
+        contentType = "text/plain"
+      }
+
+      const status = action.statusCode || 200
+
+      const finalHeaders = {"Content-Type": contentType}
+      modify_response(ctx, finalBody, status)
+      return build_action_processor_response(
+        action, 
+        true, 
+        build_post_process_data(
+          status,
+          finalHeaders,
+          finalBody,
+        )
+      )
     }
 
     return build_action_processor_response(action, false);
