@@ -44,5 +44,5 @@ export const get_success_actions_from_action_results = (
 };
 
 export const get_file_contents = (file_path) => {
-  return fs.readFileSync(action.response, "utf-8");
+  return fs.readFileSync(file_path, "utf-8");
 }
