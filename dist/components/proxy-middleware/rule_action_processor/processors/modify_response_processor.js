@@ -1,13 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const proxy_1 = require("../../../../lib/proxy");
 const requestly_core_1 = require("@requestly/requestly-core");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
-const fs_1 = __importDefault(require("fs"));
 const http_helpers_1 = require("../../helpers/http_helpers");
 const utils_2 = require("../../../../utils");
 const constants_1 = require("../../constants");
@@ -17,16 +13,32 @@ const process_modify_response_action = async (action, ctx) => {
         return (0, utils_1.build_action_processor_response)(action, false);
     }
     if (ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST) {
-        if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.STATIC
-            && action.serveWithoutRequest) {
+        if (action.serveWithoutRequest) {
             let contentType, finalBody;
+            if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
+                try {
+                    finalBody = (0, utils_1.get_file_contents)(action.response);
+                }
+                catch (err) {
+                    console.log("Error reading file", err);
+                    return (0, utils_1.build_action_processor_response)(action, false);
+                }
+            }
+            else if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+                finalBody = action.response;
+            }
+            else {
+                return (0, utils_1.build_action_processor_response)(action, false);
+            }
             try {
-                finalBody = JSON.parse(action.response);
+                const parsedResponse = JSON.parse(finalBody);
+                if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+                    finalBody = parsedResponse;
+                }
                 contentType = "application/json";
             }
             catch (_a) {
                 contentType = "text/plain";
-                finalBody = action.response;
             }
             const status = action.statusCode || 200;
             const finalHeaders = { "Content-Type": contentType };
@@ -70,7 +82,7 @@ const modify_response = (ctx, new_resp, status_code) => {
 const modify_response_using_local = (action, ctx) => {
     let data;
     try {
-        data = fs_1.default.readFileSync(action.response, "utf-8");
+        data = (0, utils_1.get_file_contents)(action.response);
         modify_response(ctx, data, action.statusCode);
     }
     catch (err) {
