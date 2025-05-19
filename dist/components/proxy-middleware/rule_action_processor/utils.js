@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.get_success_actions_from_action_results = exports.build_post_process_data = exports.build_action_processor_response = void 0;
+exports.get_file_contents = exports.get_success_actions_from_action_results = exports.build_post_process_data = exports.build_action_processor_response = void 0;
+const fs_1 = __importDefault(require("fs"));
 const build_action_processor_response = (action, success = false, post_process_data = null) => {
     let resp = {
         action: action,
@@ -31,3 +35,7 @@ const get_success_actions_from_action_results = (action_result_objs = []) => {
     return success_action_results_objs.map((obj) => obj.action);
 };
 exports.get_success_actions_from_action_results = get_success_actions_from_action_results;
+const get_file_contents = (file_path) => {
+    return fs_1.default.readFileSync(action.response, "utf-8");
+};
+exports.get_file_contents = get_file_contents;
