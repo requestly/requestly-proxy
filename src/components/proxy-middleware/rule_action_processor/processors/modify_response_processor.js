@@ -4,8 +4,7 @@ import {
   CONSTANTS as GLOBAL_CONSTANTS,
 } from "@requestly/requestly-core";
 import { getResponseContentTypeHeader, getResponseHeaders, get_request_url } from "../../helpers/proxy_ctx_helper";
-import { build_action_processor_response, build_post_process_data } from "../utils";
-import fs from "fs";
+import { build_action_processor_response, build_post_process_data, get_file_contents } from "../utils";
 import { getContentType, parseJsonBody } from "../../helpers/http_helpers";
 import { executeUserFunction, getFunctionFromString } from "../../../../utils";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "../../constants";
@@ -18,20 +17,33 @@ const process_modify_response_action = async (action, ctx) => {
   }
 
   if(ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST) {
-    if(
-      action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC 
-      && action.serveWithoutRequest 
-    ) {
+    if(action.serveWithoutRequest) {
       let contentType, finalBody;
+      if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
+        try {
+          finalBody = get_file_contents(action.response);
+        } catch (err) {
+          console.log("Error reading file", err)
+          return build_action_processor_response(action, false);
+        }
+      } else if (action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+        finalBody = action.response
+      } else {
+        return build_action_processor_response(action, false);
+      }
+
       try {
-        finalBody =  JSON.parse(action.response)
+        const parsedResponse = JSON.parse(finalBody)
+        if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+          finalBody = parsedResponse;
+        }
         contentType =  "application/json";
       } catch {
         contentType = "text/plain"
-        finalBody = action.response
       }
+
       const status = action.statusCode || 200
-      
+
       const finalHeaders = {"Content-Type": contentType}
       modify_response(ctx, finalBody, status)
       return build_action_processor_response(
@@ -89,7 +101,7 @@ const modify_response = (ctx, new_resp, status_code) => {
 const modify_response_using_local = (action, ctx) => {
   let data;
   try {
-    data = fs.readFileSync(action.response, "utf-8");
+    data = get_file_contents(action.response)
     modify_response(ctx, data, action.statusCode);
   } catch (err) {
     console.log("Error reading file", err)

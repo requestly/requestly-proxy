@@ -1,3 +1,5 @@
+import fs from "fs";
+
 export const build_action_processor_response = (
   action,
   success = false,
@@ -40,3 +42,7 @@ export const get_success_actions_from_action_results = (
 
   return success_action_results_objs.map((obj) => obj.action);
 };
+
+export const get_file_contents = (file_path) => {
+  return fs.readFileSync(action.response, "utf-8");
+}
