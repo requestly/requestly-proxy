@@ -21,6 +21,7 @@ import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "./constants";
 import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
+import { dataToServeUnreachablePage, isAddressUnreachableError } from "./helpers/handleUnreachableAddress";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 
@@ -162,6 +163,32 @@ class ProxyMiddlewareManager {
               rules_middleware.action_result_objs,
               GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
             )
+        } else if(kind === "PROXY_TO_SERVER_REQUEST_ERROR") {
+          try {
+            const host = get_request_url(ctx);
+            const isAddressUnreachable = await isAddressUnreachableError(host);
+            if (isAddressUnreachable) {
+              const { status, contentType, body } = dataToServeUnreachablePage(host);
+              ctx.proxyToClientResponse.writeHead(
+                status,
+                http.STATUS_CODES[status],
+                { "Content-Type": contentType }
+              );
+              ctx.proxyToClientResponse.end(body);
+              ctx.rq.set_final_response({
+                status_code: status,
+                headers: { "Content-Type": contentType },
+                body: body,
+              });
+              logger_middleware.send_network_log(
+                ctx,
+                rules_middleware.action_result_objs,
+                GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
+              );
+            }
+          } catch (error) {
+            console.error("Error checking address:", error);
+          }
         }
 
         return callback();
