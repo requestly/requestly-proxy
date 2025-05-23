@@ -987,6 +987,14 @@ Proxy.prototype._onHttpServerRequest = function (
     "error",
     self._onError.bind(self, "PROXY_TO_CLIENT_RESPONSE_ERROR", ctx)
   );
+  ctx.proxyToClientResponse.on(
+    "finish",
+    () => {
+      console.log("D3G-4: Proxy response finished");
+      ctx.clientToProxyRequest.destroy();
+      ctx.proxyToClientResponse.destroy();
+    }
+  );
   ctx.clientToProxyRequest.pause();
   var hostPort = Proxy.parseHostAndPort(
     ctx.clientToProxyRequest,

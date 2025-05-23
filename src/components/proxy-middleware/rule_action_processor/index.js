@@ -47,7 +47,19 @@ class RuleActionProcessor {
       if(typeof(body) !== 'string') {
         body = JSON.stringify(body);
       }
+
+      console.log("CTX.proxyToClientResponse", JSON.stringify({
+        writableEnded: ctx.proxyToClientResponse.writableEnded,
+        writableFinished: ctx.proxyToClientResponse.writableFinished,
+        finished: ctx.proxyToClientResponse.finished
+      }, null, 2));
       ctx.proxyToClientResponse.writeHead(status_code, headers).end(body);
+      console.log("CTX.proxyToClientResponse", JSON.stringify({
+        writableEnded: ctx.proxyToClientResponse.writableEnded,
+        writableFinished: ctx.proxyToClientResponse.writableFinished,
+        finished: ctx.proxyToClientResponse.finished
+      }, null, 2));
+      console.log("D3G: Wrote proxyToClientResponse", JSON.stringify({time: Date.now(), status_code, headers, body}, null, 2));
 
       ctx.rq.set_final_response({
         status_code: status_code,
