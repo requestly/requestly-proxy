@@ -52,6 +52,7 @@ class RuleProcessorHelper {
           rule_processor,
           rule
         );
+        console.log("D3G: rule_action", rule_action);
         break;
 
       case GLOBAL_CONSTANTS.RULE_TYPES.HEADERS:
@@ -122,16 +123,17 @@ class RuleProcessorHelper {
     let requestData = {};
 
     if (this.request_data.method == "POST") {
-      requestData = this.request_data.request_body;
+      requestData = this.request_data.request_body; // how and when??
     } else {
       requestData = this.request_data.query_params;
     }
-
+    console.log("DBG: Rule DAta and Request Datat ", JSON.stringify({time: Date.now(), request: this.request_data, rule}, null, 2));
     const rule_action = rule_processor.process({
       rule,
       requestURL: this.request_data.request_url,
       details: { ...this.request_data , requestData },
     });
+    console.log("DBG: Rule Action ", rule_action);
     return rule_action;
   };
 

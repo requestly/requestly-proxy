@@ -95,7 +95,7 @@ class RulesMiddleware {
     await this._fetch_rules();
 
     this.on_request_actions = this._process_rules();
-
+    
     const { action_result_objs, continue_request } =
       await this.rule_action_processor.process_actions(
         this.on_request_actions,
@@ -129,6 +129,7 @@ class RulesMiddleware {
     }
     this._update_request_data({ request_body: ctx.rq.get_json_request_body() });
 
+    this.on_request_actions = this._process_rules(); // required for rules that target based on request body // verry innefficient
     const { action_result_objs, continue_request } =
       await this.rule_action_processor.process_actions(
         this.on_request_actions,
