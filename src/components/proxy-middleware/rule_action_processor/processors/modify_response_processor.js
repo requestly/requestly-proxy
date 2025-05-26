@@ -10,13 +10,21 @@ import { executeUserFunction, getFunctionFromString } from "../../../../utils";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "../../constants";
 
 const process_modify_response_action = async (action, ctx) => {
-  const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST,PROXY_HANDLER_TYPE.ON_RESPONSE_END, PROXY_HANDLER_TYPE.ON_ERROR];
+  const allowed_handlers = [
+    PROXY_HANDLER_TYPE.ON_REQUEST,
+    PROXY_HANDLER_TYPE.ON_REQUEST_END,
+    PROXY_HANDLER_TYPE.ON_RESPONSE_END, 
+    PROXY_HANDLER_TYPE.ON_ERROR
+  ];
 
   if (!allowed_handlers.includes(ctx.currentHandler)) {
     return build_action_processor_response(action, false);
   }
 
-  if(ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST) {
+  if(
+    ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST ||
+    ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST_END
+  ) {
     if(action.serveWithoutRequest) {
       let contentType, finalBody;
       if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {

@@ -186,17 +186,21 @@ class ProxyMiddlewareManager {
         ctx.rq.set_original_request({ body: pre_final_body });
         ctx.rq_request_body = pre_final_body;
 
+        let should_continue_request = true;
         if (parsedBody && RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
           // Do modifications, if any
           const { action_result_objs, continue_request } =
             await rules_middleware.on_request_end(ctx);
+
+          should_continue_request = continue_request;
         }
 
-        // Use the updated request
-        ctx.proxyToServerRequest.write(ctx.rq_request_body);
-        ctx.rq.set_final_request({ body: ctx.rq_request_body });
-
-        return callback();
+        if(should_continue_request) {
+          // Use the updated request
+          ctx.proxyToServerRequest.write(ctx.rq_request_body);
+          ctx.rq.set_final_request({ body: ctx.rq_request_body });
+          callback();
+        }
       });
 
       ctx.onResponse(async (ctx, callback) => {
