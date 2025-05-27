@@ -185,6 +185,7 @@ class ProxyMiddlewareManager {
                 rules_middleware.action_result_objs,
                 GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
               );
+              return;
             }
           } catch (error) {
             console.error("Error checking address:", error);
