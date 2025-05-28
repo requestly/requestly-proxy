@@ -53,11 +53,11 @@ const process_modify_response_action = async (action, ctx) => {
       const status = action.statusCode || 200
 
       const finalHeaders = {
-        "Content-Type": contentType,
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Credentials": "true",
+        "content-type": contentType,
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "*",
+        "access-control-allow-headers": "*",
+        "access-control-allow-credentials": "true",
       }
       modify_response(ctx, finalBody, status)
       return build_action_processor_response(
