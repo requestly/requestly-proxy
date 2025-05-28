@@ -34,7 +34,10 @@ const process_modify_response_action = async (action, ctx) => {
 
       try {
         const parsedResponse = JSON.parse(finalBody)
-        if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+        if(
+          action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC || 
+          action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE
+        ) {
           finalBody = parsedResponse;
         }
         contentType =  "application/json";
