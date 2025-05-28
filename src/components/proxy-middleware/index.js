@@ -157,7 +157,7 @@ class ProxyMiddlewareManager {
               headers: responseHeaders,
               body: ctx.rq_response_body,
             });
-          if(!ctx.rq.closed) {
+          if(!ctx.rq.request_finished) {
             logger_middleware.send_network_log(
               ctx,
               rules_middleware.action_result_objs,
@@ -193,9 +193,7 @@ class ProxyMiddlewareManager {
         if (parsedBody && RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
           // Do modifications, if any
           const { action_result_objs, continue_request } = await rules_middleware.on_request_end(ctx);
-          console.log("DG-1: continue_request", continue_request, ctx.uuid);
           if(!continue_request) {
-            // try destroy socket 
             logger_middleware.send_network_log(
               ctx,
               rules_middleware.action_result_objs,
@@ -205,7 +203,6 @@ class ProxyMiddlewareManager {
           }
         }
 
-        console.log("DG-1: Afterwards  ", ctx.uuid);
         // Use the updated request
         ctx.proxyToServerRequest.write(ctx.rq_request_body);
         ctx.rq.set_final_request({ body: ctx.rq_request_body });
@@ -231,7 +228,6 @@ class ProxyMiddlewareManager {
       });
 
       ctx.onResponseEnd(async function (ctx, callback) {
-        console.log("DG: onResponseEnd", ctx.uuid);
         let body = new Buffer.concat(response_body_chunks);
         const contentTypeHeader = getResponseContentTypeHeader(ctx);
         const contentType = getContentType(contentTypeHeader);
@@ -264,7 +260,6 @@ class ProxyMiddlewareManager {
             ctx.rq_response_status_code || getResponseStatusCode(ctx),
           body: ctx.rq_response_body,
         });
-        console.log("DG-11: After response end", ctx.uuid);
         logger_middleware.send_network_log(
           ctx,
           rules_middleware.action_result_objs,

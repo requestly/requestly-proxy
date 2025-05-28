@@ -49,7 +49,7 @@ class RuleActionProcessor {
       }
 
       ctx.proxyToClientResponse.writeHead(status_code, headers).end(body);
-      ctx.rq.closed = true;
+      ctx.rq.request_finished = true;
 
       ctx.rq.set_final_response({
         status_code: status_code,
