@@ -284,8 +284,6 @@ class ProxyMiddlewareManager {
       //logger
       if (continue_request) {
         return callback();
-      } else {
-        // destroy socket
       }
     }, is_detachable);
   };
