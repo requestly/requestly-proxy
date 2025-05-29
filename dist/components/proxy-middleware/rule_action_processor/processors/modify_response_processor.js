@@ -8,11 +8,17 @@ const http_helpers_1 = require("../../helpers/http_helpers");
 const utils_2 = require("../../../../utils");
 const constants_1 = require("../../constants");
 const process_modify_response_action = async (action, ctx) => {
-    const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST, proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END, proxy_1.PROXY_HANDLER_TYPE.ON_ERROR];
+    const allowed_handlers = [
+        proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST,
+        proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST_END,
+        proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END,
+        proxy_1.PROXY_HANDLER_TYPE.ON_ERROR
+    ];
     if (!allowed_handlers.includes(ctx.currentHandler)) {
         return (0, utils_1.build_action_processor_response)(action, false);
     }
-    if (ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST) {
+    if (ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST ||
+        ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST_END) {
         if (action.serveWithoutRequest) {
             let contentType, finalBody;
             if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
@@ -41,7 +47,13 @@ const process_modify_response_action = async (action, ctx) => {
                 contentType = "text/plain";
             }
             const status = action.statusCode || 200;
-            const finalHeaders = { "Content-Type": contentType };
+            const finalHeaders = {
+                "content-type": contentType,
+                "access-control-allow-origin": "*",
+                "access-control-allow-methods": "*",
+                "access-control-allow-headers": "*",
+                "access-control-allow-credentials": "true",
+            };
             modify_response(ctx, finalBody, status);
             return (0, utils_1.build_action_processor_response)(action, true, (0, utils_1.build_post_process_data)(status, finalHeaders, finalBody));
         }
