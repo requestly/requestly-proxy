@@ -18,7 +18,7 @@ export function isAddressUnreachableError(host) {
 
 export function dataToServeUnreachablePage(host) {
     return {
-        status: 504,
+        status: 502,
         contentType: 'text/html',
         body: `
 <!DOCTYPE html>
