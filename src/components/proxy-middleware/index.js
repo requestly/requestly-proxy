@@ -157,11 +157,15 @@ class ProxyMiddlewareManager {
               headers: responseHeaders,
               body: ctx.rq_response_body,
             });
-          logger_middleware.send_network_log(
+          if(!ctx.rq.request_finished) {
+            logger_middleware.send_network_log(
               ctx,
               rules_middleware.action_result_objs,
               GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
             )
+          } else {
+            console.log("Expected Error after early termination of request: ", err);
+          }
         }
 
         return callback();
@@ -188,8 +192,15 @@ class ProxyMiddlewareManager {
 
         if (parsedBody && RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
           // Do modifications, if any
-          const { action_result_objs, continue_request } =
-            await rules_middleware.on_request_end(ctx);
+          const { action_result_objs, continue_request } = await rules_middleware.on_request_end(ctx);
+          if(!continue_request) {
+            logger_middleware.send_network_log(
+              ctx,
+              rules_middleware.action_result_objs,
+              GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
+            );
+            return;
+          }
         }
 
         // Use the updated request
