@@ -52,12 +52,17 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
       const mimeType = mime.lookup(path)
       const bodyContent = buffers.toString("utf-8") // assuming utf-8 encoding
       const headers = mimeType ? {
-        "Content-Type": mimeType,
+        "content-type": mimeType,
         "Content-Length": Buffer.byteLength(bodyContent),
         "Cache-Control": "no-cache"
       } : {
         "Cache-Control": "no-cache"
       }
+
+      headers["Access-Control-Allow-Origin"] = "*";
+      headers["Access-Control-Allow-Credentials"] = "true";
+
+      console.log("DG-1: File read successfully", path, headers) 
       return {
         status: true,
         response_data: {
