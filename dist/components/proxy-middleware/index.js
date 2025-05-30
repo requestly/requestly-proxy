@@ -17,6 +17,7 @@ const ctx_rq_namespace_1 = __importDefault(require("./helpers/ctx_rq_namespace")
 const http_helpers_1 = require("./helpers/http_helpers");
 const constants_1 = require("./constants");
 const requestly_core_1 = require("@requestly/requestly-core");
+const handleUnreachableAddress_1 = require("./helpers/handleUnreachableAddress");
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 exports.MIDDLEWARE_TYPE = {
@@ -99,9 +100,33 @@ class ProxyMiddlewareManager {
                         if (!ctx.rq.request_finished) {
                             logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
                         }
-                        else {
-                            console.log("Expected Error after early termination of request: ", err);
+                    }
+                    else if (kind === "PROXY_TO_SERVER_REQUEST_ERROR") {
+                        try {
+                            const host = (0, proxy_ctx_helper_1.get_request_url)(ctx);
+                            const isAddressUnreachable = await (0, handleUnreachableAddress_1.isAddressUnreachableError)(host);
+                            if (isAddressUnreachable) {
+                                const { status, contentType, body } = (0, handleUnreachableAddress_1.dataToServeUnreachablePage)(host);
+                                ctx.proxyToClientResponse.writeHead(status, http_1.default.STATUS_CODES[status], {
+                                    "Content-Type": contentType,
+                                    "x-rq-error": "ERR_NAME_NOT_RESOLVED"
+                                });
+                                ctx.proxyToClientResponse.end(body);
+                                ctx.rq.set_final_response({
+                                    status_code: status,
+                                    headers: { "Content-Type": contentType },
+                                    body: body,
+                                });
+                                logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
+                                return;
+                            }
                         }
+                        catch (error) {
+                            console.error("Error checking address:", error);
+                        }
+                    }
+                    else {
+                        console.log("Expected Error after early termination of request: ", err);
                     }
                     return callback();
                 });

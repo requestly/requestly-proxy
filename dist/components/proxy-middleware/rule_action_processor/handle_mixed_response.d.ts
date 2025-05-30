@@ -12,12 +12,12 @@ declare function handleMixedResponse(ctx: any, destinationUrl: any): Promise<{
     status: boolean;
     response_data: {
         headers: {
-            "Content-Type": any;
+            "content-type": any;
             "Content-Length": number;
             "Cache-Control": string;
         } | {
             "Cache-Control": string;
-            "Content-Type"?: undefined;
+            "content-type"?: undefined;
             "Content-Length"?: undefined;
         };
         status_code: number;
