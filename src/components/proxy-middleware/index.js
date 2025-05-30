@@ -172,7 +172,10 @@ class ProxyMiddlewareManager {
               ctx.proxyToClientResponse.writeHead(
                 status,
                 http.STATUS_CODES[status],
-                { "Content-Type": contentType }
+                { 
+                  "Content-Type": contentType ,
+                  "x-rq-error": "ERR_NAME_NOT_RESOLVED"
+                }
               );
               ctx.proxyToClientResponse.end(body);
               ctx.rq.set_final_response({
