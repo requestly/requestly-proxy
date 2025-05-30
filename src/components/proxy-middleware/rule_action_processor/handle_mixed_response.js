@@ -59,10 +59,11 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
         "Cache-Control": "no-cache"
       }
 
-      headers["Access-Control-Allow-Origin"] = "*";
-      headers["Access-Control-Allow-Credentials"] = "true";
+      headers["access-control-allow-origin"] = "*";
+      headers["access-control-allow-credentials"] = "true";
+      headers["access-control-allow-methods"] = "*";
+      headers["access-control-allow-headers"] = "*";
 
-      console.log("DG-1: File read successfully", path, headers) 
       return {
         status: true,
         response_data: {
