@@ -52,12 +52,18 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
       const mimeType = mime.lookup(path)
       const bodyContent = buffers.toString("utf-8") // assuming utf-8 encoding
       const headers = mimeType ? {
-        "Content-Type": mimeType,
+        "content-type": mimeType,
         "Content-Length": Buffer.byteLength(bodyContent),
         "Cache-Control": "no-cache"
       } : {
         "Cache-Control": "no-cache"
       }
+
+      headers["access-control-allow-origin"] = "*";
+      headers["access-control-allow-credentials"] = "true";
+      headers["access-control-allow-methods"] = "*";
+      headers["access-control-allow-headers"] = "*";
+
       return {
         status: true,
         response_data: {
