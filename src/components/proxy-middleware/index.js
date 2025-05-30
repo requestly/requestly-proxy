@@ -143,7 +143,7 @@ class ProxyMiddlewareManager {
         // Only modify response if any modify_response action is applied
         const modifyResponseActionExist = action_result_objs.some((action_result_obj) => action_result_obj?.action?.action === "modify_response")
 
-        if(modifyResponseActionExist) {
+        if (modifyResponseActionExist) {
           const statusCode = ctx.rq_response_status_code || 404;
           const responseHeaders = getResponseHeaders(ctx) || {}
           ctx.proxyToClientResponse.writeHead(
@@ -158,12 +158,14 @@ class ProxyMiddlewareManager {
               headers: responseHeaders,
               body: ctx.rq_response_body,
             });
-          logger_middleware.send_network_log(
+          if(!ctx.rq.request_finished) {
+            logger_middleware.send_network_log(
               ctx,
               rules_middleware.action_result_objs,
               GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
             )
-        } else if(kind === "PROXY_TO_SERVER_REQUEST_ERROR") {
+          } 
+        } else if (kind === "PROXY_TO_SERVER_REQUEST_ERROR") {
           try {
             const host = get_request_url(ctx);
             const isAddressUnreachable = await isAddressUnreachableError(host);
@@ -192,7 +194,9 @@ class ProxyMiddlewareManager {
             }
           } catch (error) {
             console.error("Error checking address:", error);
-          }
+          } 
+        } else {
+          console.log("Expected Error after early termination of request: ", err);
         }
 
         return callback();
@@ -219,8 +223,15 @@ class ProxyMiddlewareManager {
 
         if (parsedBody && RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
           // Do modifications, if any
-          const { action_result_objs, continue_request } =
-            await rules_middleware.on_request_end(ctx);
+          const { action_result_objs, continue_request } = await rules_middleware.on_request_end(ctx);
+          if(!continue_request) {
+            logger_middleware.send_network_log(
+              ctx,
+              rules_middleware.action_result_objs,
+              GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
+            );
+            return;
+          }
         }
 
         // Use the updated request
