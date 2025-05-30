@@ -21,6 +21,7 @@ import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "./constants";
 import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
+import { dataToServeUnreachablePage, isAddressUnreachableError } from "./helpers/handleUnreachableAddress";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 
@@ -142,7 +143,7 @@ class ProxyMiddlewareManager {
         // Only modify response if any modify_response action is applied
         const modifyResponseActionExist = action_result_objs.some((action_result_obj) => action_result_obj?.action?.action === "modify_response")
 
-        if(modifyResponseActionExist) {
+        if (modifyResponseActionExist) {
           const statusCode = ctx.rq_response_status_code || 404;
           const responseHeaders = getResponseHeaders(ctx) || {}
           ctx.proxyToClientResponse.writeHead(
@@ -163,9 +164,39 @@ class ProxyMiddlewareManager {
               rules_middleware.action_result_objs,
               GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
             )
-          } else {
-            console.log("Expected Error after early termination of request: ", err);
-          }
+          } 
+        } else if (kind === "PROXY_TO_SERVER_REQUEST_ERROR") {
+          try {
+            const host = get_request_url(ctx);
+            const isAddressUnreachable = await isAddressUnreachableError(host);
+            if (isAddressUnreachable) {
+              const { status, contentType, body } = dataToServeUnreachablePage(host);
+              ctx.proxyToClientResponse.writeHead(
+                status,
+                http.STATUS_CODES[status],
+                { 
+                  "Content-Type": contentType ,
+                  "x-rq-error": "ERR_NAME_NOT_RESOLVED"
+                }
+              );
+              ctx.proxyToClientResponse.end(body);
+              ctx.rq.set_final_response({
+                status_code: status,
+                headers: { "Content-Type": contentType },
+                body: body,
+              });
+              logger_middleware.send_network_log(
+                ctx,
+                rules_middleware.action_result_objs,
+                GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
+              );
+              return;
+            }
+          } catch (error) {
+            console.error("Error checking address:", error);
+          } 
+        } else {
+          console.log("Expected Error after early termination of request: ", err);
         }
 
         return callback();
