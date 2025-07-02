@@ -19,7 +19,7 @@ import LoggerMiddleware from "./middlewares/logger_middleware";
 import SslCertMiddleware from "./middlewares/ssl_cert_middleware";
 import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
-import { RQ_INTERCEPTED_CONTENT_TYPES } from "./constants";
+import { RQ_INTERCEPTED_CONTENT_TYPES, RULE_ACTION } from "./constants";
 import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
 import { dataToServeUnreachablePage, isAddressUnreachableError } from "./helpers/handleUnreachableAddress";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
@@ -221,6 +221,8 @@ class ProxyMiddlewareManager {
         ctx.rq.set_original_request({ body: pre_final_body });
         ctx.rq_request_body = pre_final_body;
 
+        let request_rule_applied = false;
+
         if (parsedBody && RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
           // Do modifications, if any
           const { action_result_objs, continue_request } = await rules_middleware.on_request_end(ctx);
@@ -232,10 +234,18 @@ class ProxyMiddlewareManager {
             );
             return;
           }
+
+          request_rule_applied = action_result_objs?.some(
+            (obj) => obj?.action?.action === RULE_ACTION.MODIFY_REQUEST
+          );
         }
 
-        // Use the updated request
-        ctx.proxyToServerRequest.write(ctx.rq_request_body);
+        if (request_rule_applied) {
+          ctx.proxyToServerRequest.write(ctx.rq_request_body);
+        } else {
+          // If no modifications, write the original request body buffer so that we don't mess up during decoding
+          ctx.proxyToServerRequest.write(body);
+        }
         ctx.rq.set_final_request({ body: ctx.rq_request_body });
 
         return callback();
