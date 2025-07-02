@@ -146,6 +146,7 @@ class ProxyMiddlewareManager {
                     let pre_final_body = parsedBody || body.toString("utf8");
                     ctx.rq.set_original_request({ body: pre_final_body });
                     ctx.rq_request_body = pre_final_body;
+                    let request_rule_applied = false;
                     if (parsedBody && constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
                         // Do modifications, if any
                         const { action_result_objs, continue_request } = await rules_middleware.on_request_end(ctx);
@@ -153,9 +154,15 @@ class ProxyMiddlewareManager {
                             logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
                             return;
                         }
+                        request_rule_applied = action_result_objs === null || action_result_objs === void 0 ? void 0 : action_result_objs.some((obj) => { var _a; return ((_a = obj === null || obj === void 0 ? void 0 : obj.action) === null || _a === void 0 ? void 0 : _a.action) === constants_1.RULE_ACTION.MODIFY_REQUEST; });
                     }
-                    // Use the updated request
-                    ctx.proxyToServerRequest.write(ctx.rq_request_body);
+                    if (request_rule_applied) {
+                        ctx.proxyToServerRequest.write(ctx.rq_request_body);
+                    }
+                    else {
+                        // If no modifications, write the original request body buffer so that we don't mess up during decoding
+                        ctx.proxyToServerRequest.write(body);
+                    }
                     ctx.rq.set_final_request({ body: ctx.rq_request_body });
                     return callback();
                 });
