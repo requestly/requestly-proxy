@@ -1,6 +1,6 @@
 {
   "name": "@requestly/requestly-proxy",
-  "version": "1.3.10",
+  "version": "1.3.11",
   "description": "Proxy that gives superpowers to all the Requestly clients",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
