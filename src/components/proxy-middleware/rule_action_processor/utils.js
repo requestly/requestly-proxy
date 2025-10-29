@@ -1,3 +1,5 @@
+import fs from "fs";
+
 export const build_action_processor_response = (
   action,
   success = false,
@@ -52,4 +54,8 @@ export const getHost = (ctx) => {
   } else {
     return finalHost
   }
+}
+
+export const get_file_contents = (file_path) => {
+  return fs.readFileSync(file_path, "utf-8");
 }

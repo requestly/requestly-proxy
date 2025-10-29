@@ -1,12 +1,18 @@
 "use strict";
 var zlib = require("zlib");
-const gunzipMiddleware = {
+const decompressMiddleware = {
     onResponse: function (ctx, callback) {
         if (ctx.serverToProxyResponse.headers["content-encoding"] &&
             ctx.serverToProxyResponse.headers["content-encoding"].toLowerCase() ==
                 "gzip") {
             delete ctx.serverToProxyResponse.headers["content-encoding"];
             ctx.addResponseFilter(zlib.createGunzip());
+        }
+        else if (ctx.serverToProxyResponse.headers["content-encoding"] &&
+            ctx.serverToProxyResponse.headers["content-encoding"].toLowerCase() ==
+                "br") {
+            delete ctx.serverToProxyResponse.headers["content-encoding"];
+            ctx.addResponseFilter(zlib.createBrotliDecompress());
         }
         return callback();
     },
@@ -15,4 +21,4 @@ const gunzipMiddleware = {
         return callback();
     },
 };
-module.exports = gunzipMiddleware;
+module.exports = decompressMiddleware;

@@ -22,15 +22,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -39,7 +30,8 @@ const axios = require("axios");
 const parser = require("ua-parser-js");
 const fs_1 = __importDefault(require("fs"));
 const Sentry = __importStar(require("@sentry/browser"));
-const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, void 0, function* () {
+const mime = require('mime-types');
+const handleMixedResponse = async (ctx, destinationUrl) => {
     var _a, _b, _c;
     // Handling mixed response from safari
     let user_agent_str = null;
@@ -50,7 +42,7 @@ const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, v
         if (user_agent === "Safari" ||
             !LOCAL_DOMAINS.some((domain) => destinationUrl.includes(domain))) {
             try {
-                const resp = yield axios.get(destinationUrl, {
+                const resp = await axios.get(destinationUrl, {
                     headers: {
                         "Cache-Control": "no-cache",
                     },
@@ -80,14 +72,26 @@ const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, v
     if (destinationUrl === null || destinationUrl === void 0 ? void 0 : destinationUrl.startsWith("file://")) {
         const path = destinationUrl.slice(7);
         try {
-            // utf-8 is common assumption, but this introduces edge cases
-            const data = fs_1.default.readFileSync(path, "utf-8");
+            const buffers = fs_1.default.readFileSync(path);
+            const mimeType = mime.lookup(path);
+            const bodyContent = buffers.toString("utf-8"); // assuming utf-8 encoding
+            const headers = mimeType ? {
+                "content-type": mimeType,
+                "Content-Length": Buffer.byteLength(bodyContent),
+                "Cache-Control": "no-cache"
+            } : {
+                "Cache-Control": "no-cache"
+            };
+            headers["access-control-allow-origin"] = "*";
+            headers["access-control-allow-credentials"] = "true";
+            headers["access-control-allow-methods"] = "*";
+            headers["access-control-allow-headers"] = "*";
             return {
                 status: true,
                 response_data: {
-                    headers: { "Cache-Control": "no-cache" },
+                    headers,
                     status_code: 200,
-                    body: data,
+                    body: buffers.toString("utf-8"), // assuming utf-8 encoding
                 },
             };
         }
@@ -106,5 +110,5 @@ const handleMixedResponse = (ctx, destinationUrl) => __awaiter(void 0, void 0, v
         }
     }
     return { status: false };
-});
+};
 exports.default = handleMixedResponse;

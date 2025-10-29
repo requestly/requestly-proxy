@@ -4,38 +4,61 @@ import {
   CONSTANTS as GLOBAL_CONSTANTS,
 } from "@requestly/requestly-core";
 import { getResponseContentTypeHeader, getResponseHeaders, get_request_url } from "../../helpers/proxy_ctx_helper";
-import { build_action_processor_response, build_post_process_data } from "../utils";
-import fs from "fs";
+import { build_action_processor_response, build_post_process_data, get_file_contents } from "../utils";
 import { getContentType, parseJsonBody } from "../../helpers/http_helpers";
-import ConsoleCapture from "capture-console-logs";
-import { getFunctionFromString } from "../../../../utils";
+import { executeUserFunction, getFunctionFromString } from "../../../../utils";
 import { RQ_INTERCEPTED_CONTENT_TYPES } from "../../constants";
 
-const { types } = require("util");
-
 const process_modify_response_action = async (action, ctx) => {
-  const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST,PROXY_HANDLER_TYPE.ON_RESPONSE_END, PROXY_HANDLER_TYPE.ON_ERROR];
+  const allowed_handlers = [
+    PROXY_HANDLER_TYPE.ON_REQUEST,
+    PROXY_HANDLER_TYPE.ON_REQUEST_END,
+    PROXY_HANDLER_TYPE.ON_RESPONSE_END, 
+    PROXY_HANDLER_TYPE.ON_ERROR
+  ];
 
   if (!allowed_handlers.includes(ctx.currentHandler)) {
     return build_action_processor_response(action, false);
   }
 
-  if(ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST) {
-    if(
-      action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC 
-      && action.serveWithoutRequest 
-    ) {
+  if(
+    ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST ||
+    ctx.currentHandler === PROXY_HANDLER_TYPE.ON_REQUEST_END
+  ) {
+    if(action.serveWithoutRequest) {
       let contentType, finalBody;
+      if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
+        try {
+          finalBody = get_file_contents(action.response);
+        } catch (err) {
+          console.log("Error reading file", err)
+          return build_action_processor_response(action, false);
+        }
+      } else if (action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+        finalBody = action.response
+      } else {
+        return build_action_processor_response(action, false);
+      }
+
       try {
-        finalBody =  JSON.parse(action.response)
+        const parsedResponse = JSON.parse(finalBody)
+        if(action.responseType === GLOBAL_CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+          finalBody = parsedResponse;
+        }
         contentType =  "application/json";
       } catch {
         contentType = "text/plain"
-        finalBody = action.response
       }
+
       const status = action.statusCode || 200
-      
-      const finalHeaders = {"Content-Type": contentType}
+
+      const finalHeaders = {
+        "content-type": contentType,
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "*",
+        "access-control-allow-headers": "*",
+        "access-control-allow-credentials": "true",
+      }
       modify_response(ctx, finalBody, status)
       return build_action_processor_response(
         action, 
@@ -92,10 +115,10 @@ const modify_response = (ctx, new_resp, status_code) => {
 const modify_response_using_local = (action, ctx) => {
   let data;
   try {
-    data = fs.readFileSync(action.response, "utf-8");
+    data = get_file_contents(action.response)
     modify_response(ctx, data, action.statusCode);
   } catch (err) {
-    console.log("Some Error while reading file");
+    console.log("Error reading file", err)
   }
 };
 
@@ -144,23 +167,7 @@ const modify_response_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
-    const consoleCapture = new ConsoleCapture()
-    consoleCapture.start(true)
-
-    finalResponse = userFunction(args);
-
-    if (types.isPromise(finalResponse)) {
-      finalResponse = await finalResponse;
-    }
-
-    consoleCapture.stop()
-    const consoleLogs = consoleCapture.getCaptures()
-    
-    ctx.rq.consoleLogs.push(...consoleLogs)
-
-    if (typeof finalResponse === "object") {
-      finalResponse = JSON.stringify(finalResponse);
-    }
+    finalResponse = await executeUserFunction(ctx, action.response, args)
 
     if (finalResponse && typeof finalResponse === "string") {
       return modify_response(ctx, finalResponse, action.statusCode);

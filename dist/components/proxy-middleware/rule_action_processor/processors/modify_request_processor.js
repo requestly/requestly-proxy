@@ -1,24 +1,10 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const proxy_1 = require("../../../../lib/proxy");
 const requestly_core_1 = require("@requestly/requestly-core");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
-const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
 const utils_2 = require("../../../../utils");
-const { types } = require("util");
 const process_modify_request_action = (action, ctx) => {
     const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST_END];
     if (!allowed_handlers.includes(ctx.currentHandler)) {
@@ -38,7 +24,7 @@ const modify_request = (ctx, new_req) => {
     if (new_req)
         ctx.rq_request_body = new_req;
 };
-const modify_request_using_code = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
+const modify_request_using_code = async (action, ctx) => {
     let userFunction = null;
     try {
         userFunction = (0, utils_2.getFunctionFromString)(action.request);
@@ -72,19 +58,7 @@ const modify_request_using_code = (action, ctx) => __awaiter(void 0, void 0, voi
         catch (_a) {
             /*Do nothing -- could not parse body as JSON */
         }
-        const consoleCapture = new capture_console_logs_1.default();
-        consoleCapture.start(true);
-        finalRequest = userFunction(args);
-        if (types.isPromise(finalRequest)) {
-            finalRequest = yield finalRequest;
-        }
-        consoleCapture.stop();
-        const consoleLogs = consoleCapture.getCaptures();
-        ctx.rq.consoleLogs.push(...consoleLogs);
-        const isRequestJSON = !!args.bodyAsJson;
-        if (typeof finalRequest === "object" && isRequestJSON) {
-            finalRequest = JSON.stringify(finalRequest);
-        }
+        finalRequest = await (0, utils_2.executeUserFunction)(ctx, userFunction, args);
         if (finalRequest && typeof finalRequest === "string") {
             return modify_request(ctx, finalRequest);
         }
@@ -96,5 +70,5 @@ const modify_request_using_code = (action, ctx) => __awaiter(void 0, void 0, voi
         return modify_request(ctx, "Can't execute Requestly function. Please recheck. Error Code 187. Actual Error: " +
             error.message);
     }
-});
+};
 exports.default = process_modify_request_action;

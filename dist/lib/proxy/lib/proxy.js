@@ -21,6 +21,7 @@ module.exports = function () {
     return new Proxy();
 };
 module.exports.gunzip = require("./middleware/gunzip");
+module.exports.decompress = require("./middleware/decompress");
 module.exports.wildcard = require("./middleware/wildcard");
 var Proxy = function () {
     this.onConnectHandlers = [];
@@ -1135,6 +1136,7 @@ Proxy.prototype._onRequestData = function (ctx, chunk, callback) {
             if (err) {
                 return callback(err);
             }
+            chunk = newChunk;
             return callback(null, newChunk);
         });
     }, function (err) {

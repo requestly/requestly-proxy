@@ -1,8 +1,9 @@
 export namespace MIDDLEWARE_TYPE {
-    const AMIUSING: string;
-    const RULES: string;
-    const LOGGER: string;
-    const SSL_CERT: string;
+    let AMIUSING: string;
+    let RULES: string;
+    let LOGGER: string;
+    let SSL_CERT: string;
+    let GLOBAL_STATE: string;
 }
 export default ProxyMiddlewareManager;
 declare class ProxyMiddlewareManager {

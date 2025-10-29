@@ -8,8 +8,8 @@ class RQProxyProvider {
 }
 RQProxyProvider.rqProxyInstance = null;
 // TODO: rulesDataSource can be static here
-RQProxyProvider.createInstance = (proxyConfig, rulesDataSource, loggerService) => {
-    RQProxyProvider.rqProxyInstance = new rq_proxy_1.default(proxyConfig, rulesDataSource, loggerService);
+RQProxyProvider.createInstance = (proxyConfig, rulesDataSource, loggerService, initialGlobalState) => {
+    RQProxyProvider.rqProxyInstance = new rq_proxy_1.default(proxyConfig, rulesDataSource, loggerService, initialGlobalState);
 };
 RQProxyProvider.getInstance = () => {
     if (!RQProxyProvider.rqProxyInstance) {

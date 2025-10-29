@@ -16,7 +16,7 @@ class SslCertMiddleware {
       ctx.clientToProxyRequest.url.indexOf("/ssl") == 0
     ) {
       ctx.proxyToClientResponse.writeHead(200, {
-        "Content-Type": "text/plain",
+        "Content-Type": "application/x-x509-ca-cert",
         "Content-Disposition": "attachment;filename=RQProxyCA.pem.crt",
       });
       const certificateString = fs.readFileSync(this.rootCertPath);

@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -34,13 +25,16 @@ class RulesMiddleware {
             this.rule_processor_helper.init_response_data(this.response_data);
         };
         this._update_request_data = (data) => {
-            this.request_data = Object.assign(Object.assign({}, this.request_data), data);
+            this.request_data = {
+                ...this.request_data,
+                ...data,
+            };
             this.rule_processor_helper.init_request_data(this.request_data);
         };
-        this._fetch_rules = () => __awaiter(this, void 0, void 0, function* () {
+        this._fetch_rules = async () => {
             var _a;
-            this.active_rules = yield this.rulesHelper.get_rules(true, ((_a = this.request_data) === null || _a === void 0 ? void 0 : _a.request_headers) || {});
-        });
+            this.active_rules = await this.rulesHelper.get_rules(true, ((_a = this.request_data) === null || _a === void 0 ? void 0 : _a.request_headers) || {});
+        };
         /*
           @return: actions[]
         */
@@ -58,44 +52,45 @@ class RulesMiddleware {
                     this.action_result_objs.concat(action_result_objs);
             }
         };
-        this.on_request = (ctx) => __awaiter(this, void 0, void 0, function* () {
+        this.on_request = async (ctx) => {
             if (!this.is_active) {
                 return [];
             }
             // TODO: Remove this. Hack to fix rule not fetching first time.
-            yield this._fetch_rules();
+            await this._fetch_rules();
             this.on_request_actions = this._process_rules();
-            const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_request_actions, ctx);
+            const { action_result_objs, continue_request } = await this.rule_action_processor.process_actions(this.on_request_actions, ctx);
             this._update_action_result_objs(action_result_objs);
             return { action_result_objs, continue_request };
-        });
-        this.on_response = (ctx) => __awaiter(this, void 0, void 0, function* () {
+        };
+        this.on_response = async (ctx) => {
             if (!this.is_active) {
                 return [];
             }
             this._init_response_data(ctx);
             this.on_response_actions = this._process_rules(true);
-            const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_response_actions, ctx);
+            const { action_result_objs, continue_request } = await this.rule_action_processor.process_actions(this.on_response_actions, ctx);
             this._update_action_result_objs(action_result_objs);
             return { action_result_objs, continue_request };
-        });
-        this.on_request_end = (ctx) => __awaiter(this, void 0, void 0, function* () {
+        };
+        this.on_request_end = async (ctx) => {
             if (!this.is_active) {
                 return [];
             }
             this._update_request_data({ request_body: ctx.rq.get_json_request_body() });
-            const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_request_actions, ctx);
+            this.on_request_actions = this._process_rules();
+            const { action_result_objs, continue_request } = await this.rule_action_processor.process_actions(this.on_request_actions, ctx);
             this._update_action_result_objs(action_result_objs);
             return { action_result_objs, continue_request };
-        });
-        this.on_response_end = (ctx) => __awaiter(this, void 0, void 0, function* () {
+        };
+        this.on_response_end = async (ctx) => {
             if (!this.is_active) {
                 return [];
             }
-            const { action_result_objs, continue_request } = yield this.rule_action_processor.process_actions(this.on_response_actions, ctx);
+            const { action_result_objs, continue_request } = await this.rule_action_processor.process_actions(this.on_response_actions, ctx);
             this._update_action_result_objs(action_result_objs);
             return { action_result_objs, continue_request };
-        });
+        };
         this.is_active = is_active;
         this.rule_processor_helper = new rule_processor_helper_1.default();
         this.rule_action_processor = new rule_action_processor_1.default();

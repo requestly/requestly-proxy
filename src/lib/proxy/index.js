@@ -1,3 +1,5 @@
-"use strict";
+import DefaultExport, {Proxy, PROXY_HANDLER_TYPE, gunzip, decompress, wildcard} from "./lib/proxy"
 
-module.exports = require("./lib/proxy");
+export default DefaultExport;
+
+export {Proxy, PROXY_HANDLER_TYPE, gunzip, decompress, wildcard}

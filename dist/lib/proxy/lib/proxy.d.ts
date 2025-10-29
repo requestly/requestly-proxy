@@ -7,12 +7,12 @@ declare var fs: any;
 declare var path: any;
 declare var events: any;
 declare var WebSocket: {
-    new (url: string | URL, protocols?: string | string[]): WebSocket;
     prototype: WebSocket;
-    readonly CLOSED: number;
-    readonly CLOSING: number;
-    readonly CONNECTING: number;
-    readonly OPEN: number;
+    new (url: string | URL, protocols?: string | string[]): WebSocket;
+    readonly CONNECTING: 0;
+    readonly OPEN: 1;
+    readonly CLOSING: 2;
+    readonly CLOSED: 3;
 };
 declare var url: any;
 declare var semaphore: any;

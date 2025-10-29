@@ -88,7 +88,7 @@ const createHarPostData = (body, headers) => {
     //   };
     // }
     return {
-        mimeType: contentType,
+        mimeType: contentType, // Let's assume by default content type is JSON
         text: body,
     };
 };
@@ -97,10 +97,10 @@ const createHarPostData = (body, headers) => {
 const createRequestHarObject = (requestHarObject, proxyToServerRequestOptions) => {
     const { method, host, path, body, headers, agent, query_params } = proxyToServerRequestOptions;
     return {
-        bodySize: -1,
-        headersSize: -1,
+        bodySize: -1, // TODO: calculate the body size
+        headersSize: -1, // TODO: calculate the header size
         httpVersion: "HTTP/1.1",
-        cookies: [],
+        cookies: [], // TODO: add support for Cookies
         headers: requestHarObject.headers || createHarHeaders(headers),
         method: requestHarObject.method || method,
         queryString: requestHarObject.queryString || createHarQueryStrings(query_params),
@@ -140,10 +140,10 @@ const createHarEntry = (requestHeaders, method, protocol, host, path, requestBod
 exports.createHarEntry = createHarEntry;
 const createHarRequest = (requestHeaders, method, protocol, host, path, requestBody, requestParams) => {
     return {
-        bodySize: -1,
-        headersSize: -1,
+        bodySize: -1, // TODO: calculate the body size
+        headersSize: -1, // TODO: calculate the header size
         httpVersion: "HTTP/1.1",
-        cookies: [],
+        cookies: [], // TODO: add support for Cookies
         headers: createHarHeaders(requestHeaders),
         method: method,
         queryString: createHarQueryStrings(requestParams),

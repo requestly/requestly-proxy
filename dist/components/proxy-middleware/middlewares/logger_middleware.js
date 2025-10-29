@@ -1,13 +1,10 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const lodash_1 = require("lodash");
-const httpsnippet_1 = __importDefault(require("httpsnippet"));
+// import { cloneDeep } from "lodash";
+// import HTTPSnippet from "httpsnippet";
 const utils_1 = require("../rule_action_processor/utils");
 const harObectCreator_1 = require("../helpers/harObectCreator");
-const url = require("url");
+// const url = require("url");
 class LoggerMiddleware {
     constructor(is_active, loggerService) {
         this.generate_curl_from_har = (requestHarObject) => {
@@ -15,15 +12,14 @@ class LoggerMiddleware {
                 return "";
             }
             let requestCurl = "";
-            try {
-                const harObject = (0, lodash_1.cloneDeep)(requestHarObject);
-                requestCurl = new httpsnippet_1.default(harObject).convert("shell", "curl", {
-                    indent: " ",
-                });
-            }
-            catch (err) {
-                console.error(`LoggerMiddleware.generate_curl_from_har Error: ${err}`);
-            }
+            // try {
+            //   const harObject = cloneDeep(requestHarObject);
+            //   requestCurl = new HTTPSnippet(harObject).convert("shell", "curl", {
+            //     indent: " ",
+            //   });
+            // } catch (err) {
+            //   console.error(`LoggerMiddleware.generate_curl_from_har Error: ${err}`);
+            // }
             return requestCurl;
         };
         this.send_network_log = (ctx, action_result_objs = [], requestState = "") => {
@@ -76,7 +72,7 @@ class LoggerMiddleware {
                 id: ctx.uuid,
                 timestamp: Math.floor(Date.now() / 1000),
                 finalHar: (0, harObectCreator_1.createHar)(ctx.rq.final_request.headers, ctx.rq.final_request.method, protocol, ctx.rq.final_request.host, ctx.rq.final_request.path, ctx.rq.final_request.body, ctx.rq.final_response.status_code, ctx.rq.final_response.body, ctx.rq.final_response.headers || {}, ctx.rq.final_request.query_params),
-                requestShellCurl: this.generate_curl_from_har((_b = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _a === void 0 ? void 0 : _a.final_request) === null || _b === void 0 ? void 0 : _b.requestHarObject),
+                requestShellCurl: this.generate_curl_from_har((_b = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _a === void 0 ? void 0 : _a.final_request) === null || _b === void 0 ? void 0 : _b.requestHarObject), // TODO: Move this to client side
                 actions: (0, utils_1.get_success_actions_from_action_results)(action_result_objs),
                 consoleLogs: (_c = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _c === void 0 ? void 0 : _c.consoleLogs,
                 requestState

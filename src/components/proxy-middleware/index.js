@@ -19,8 +19,9 @@ import LoggerMiddleware from "./middlewares/logger_middleware";
 import SslCertMiddleware from "./middlewares/ssl_cert_middleware";
 import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
-import { RQ_INTERCEPTED_CONTENT_TYPES } from "./constants";
+import { RQ_INTERCEPTED_CONTENT_TYPES, RULE_ACTION } from "./constants";
 import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
+import { dataToServeUnreachablePage, isAddressUnreachableError } from "./helpers/handleUnreachableAddress";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 
@@ -29,6 +30,7 @@ export const MIDDLEWARE_TYPE = {
   RULES: "RULES",
   LOGGER: "LOGGER",
   SSL_CERT: "SSL_CERT",
+  GLOBAL_STATE: "GLOBAL_STATE", // SEEMS UNUSUED, BUT ADDING FOR COMPLETENESS
 };
 
 class ProxyMiddlewareManager {
@@ -37,7 +39,7 @@ class ProxyMiddlewareManager {
     proxyConfig,
     rulesHelper,
     loggerService,
-    sslConfigFetcher
+    sslConfigFetcher,
   ) {
     /*
     {
@@ -59,6 +61,7 @@ class ProxyMiddlewareManager {
     // this.sslProxyingManager = new SSLProxyingManager(sslConfigFetcher);
   }
 
+  /* NOT USEFUL */
   init_config = (config = {}) => {
     Object.keys(MIDDLEWARE_TYPE).map((middleware_key) => {
       this.config[middleware_key] =
@@ -140,7 +143,7 @@ class ProxyMiddlewareManager {
         // Only modify response if any modify_response action is applied
         const modifyResponseActionExist = action_result_objs.some((action_result_obj) => action_result_obj?.action?.action === "modify_response")
 
-        if(modifyResponseActionExist) {
+        if (modifyResponseActionExist) {
           const statusCode = ctx.rq_response_status_code || 404;
           const responseHeaders = getResponseHeaders(ctx) || {}
           ctx.proxyToClientResponse.writeHead(
@@ -155,11 +158,45 @@ class ProxyMiddlewareManager {
               headers: responseHeaders,
               body: ctx.rq_response_body,
             });
-          logger_middleware.send_network_log(
+          if(!ctx.rq.request_finished) {
+            logger_middleware.send_network_log(
               ctx,
               rules_middleware.action_result_objs,
               GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
             )
+          } 
+        } else if (kind === "PROXY_TO_SERVER_REQUEST_ERROR") {
+          try {
+            const host = get_request_url(ctx);
+            const isAddressUnreachable = await isAddressUnreachableError(host);
+            if (isAddressUnreachable) {
+              const { status, contentType, body } = dataToServeUnreachablePage(host);
+              ctx.proxyToClientResponse.writeHead(
+                status,
+                http.STATUS_CODES[status],
+                { 
+                  "Content-Type": contentType ,
+                  "x-rq-error": "ERR_NAME_NOT_RESOLVED"
+                }
+              );
+              ctx.proxyToClientResponse.end(body);
+              ctx.rq.set_final_response({
+                status_code: status,
+                headers: { "Content-Type": contentType },
+                body: body,
+              });
+              logger_middleware.send_network_log(
+                ctx,
+                rules_middleware.action_result_objs,
+                GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
+              );
+              return;
+            }
+          } catch (error) {
+            console.error("Error checking address:", error);
+          } 
+        } else {
+          console.log("Expected Error after early termination of request: ", err);
         }
 
         return callback();
@@ -184,14 +221,31 @@ class ProxyMiddlewareManager {
         ctx.rq.set_original_request({ body: pre_final_body });
         ctx.rq_request_body = pre_final_body;
 
+        let request_rule_applied = false;
+
         if (parsedBody && RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
           // Do modifications, if any
-          const { action_result_objs, continue_request } =
-            await rules_middleware.on_request_end(ctx);
+          const { action_result_objs, continue_request } = await rules_middleware.on_request_end(ctx);
+          if(!continue_request) {
+            logger_middleware.send_network_log(
+              ctx,
+              rules_middleware.action_result_objs,
+              GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
+            );
+            return;
+          }
+
+          request_rule_applied = action_result_objs?.some(
+            (obj) => obj?.action?.action === RULE_ACTION.MODIFY_REQUEST
+          );
         }
 
-        // Use the updated request
-        ctx.proxyToServerRequest.write(ctx.rq_request_body);
+        if (request_rule_applied) {
+          ctx.proxyToServerRequest.write(ctx.rq_request_body);
+        } else {
+          // If no modifications, write the original request body buffer so that we don't mess up during decoding
+          ctx.proxyToServerRequest.write(body);
+        }
         ctx.rq.set_final_request({ body: ctx.rq_request_body });
 
         return callback();
@@ -346,7 +400,7 @@ class ProxyMiddlewareManager {
   init_handlers = () => {
     this.proxy.onRequestHandlers = [];
     this.proxy.onConnectHandlers = [];
-    this.proxy.use(Proxy.gunzip);
+    this.proxy.use(Proxy.decompress);
 
     // this.init_ssl_tunneling_handler();
     this.init_amiusing_handler();

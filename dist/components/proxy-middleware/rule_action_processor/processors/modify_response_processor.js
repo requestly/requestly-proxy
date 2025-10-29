@@ -1,46 +1,59 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const proxy_1 = require("../../../../lib/proxy");
 const requestly_core_1 = require("@requestly/requestly-core");
 const proxy_ctx_helper_1 = require("../../helpers/proxy_ctx_helper");
 const utils_1 = require("../utils");
-const fs_1 = __importDefault(require("fs"));
 const http_helpers_1 = require("../../helpers/http_helpers");
-const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
 const utils_2 = require("../../../../utils");
 const constants_1 = require("../../constants");
-const { types } = require("util");
-const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
-    const allowed_handlers = [proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST, proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END, proxy_1.PROXY_HANDLER_TYPE.ON_ERROR];
+const process_modify_response_action = async (action, ctx) => {
+    const allowed_handlers = [
+        proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST,
+        proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST_END,
+        proxy_1.PROXY_HANDLER_TYPE.ON_RESPONSE_END,
+        proxy_1.PROXY_HANDLER_TYPE.ON_ERROR
+    ];
     if (!allowed_handlers.includes(ctx.currentHandler)) {
         return (0, utils_1.build_action_processor_response)(action, false);
     }
-    if (ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST) {
-        if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.STATIC
-            && action.serveWithoutRequest) {
+    if (ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST ||
+        ctx.currentHandler === proxy_1.PROXY_HANDLER_TYPE.ON_REQUEST_END) {
+        if (action.serveWithoutRequest) {
             let contentType, finalBody;
+            if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.LOCAL_FILE) {
+                try {
+                    finalBody = (0, utils_1.get_file_contents)(action.response);
+                }
+                catch (err) {
+                    console.log("Error reading file", err);
+                    return (0, utils_1.build_action_processor_response)(action, false);
+                }
+            }
+            else if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+                finalBody = action.response;
+            }
+            else {
+                return (0, utils_1.build_action_processor_response)(action, false);
+            }
             try {
-                finalBody = JSON.parse(action.response);
+                const parsedResponse = JSON.parse(finalBody);
+                if (action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.STATIC) {
+                    finalBody = parsedResponse;
+                }
                 contentType = "application/json";
             }
             catch (_a) {
                 contentType = "text/plain";
-                finalBody = action.response;
             }
             const status = action.statusCode || 200;
-            const finalHeaders = { "Content-Type": contentType };
+            const finalHeaders = {
+                "content-type": contentType,
+                "access-control-allow-origin": "*",
+                "access-control-allow-methods": "*",
+                "access-control-allow-headers": "*",
+                "access-control-allow-credentials": "true",
+            };
             modify_response(ctx, finalBody, status);
             return (0, utils_1.build_action_processor_response)(action, true, (0, utils_1.build_post_process_data)(status, finalHeaders, finalBody));
         }
@@ -51,7 +64,7 @@ const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0
         const contentTypeHeader = (0, proxy_ctx_helper_1.getResponseContentTypeHeader)(ctx);
         const contentType = (0, http_helpers_1.getContentType)(contentTypeHeader);
         if (constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) || contentType == null) {
-            yield modify_response_using_code(action, ctx);
+            await modify_response_using_code(action, ctx);
             delete_breaking_headers(ctx);
             return (0, utils_1.build_action_processor_response)(action, true);
         }
@@ -70,7 +83,7 @@ const process_modify_response_action = (action, ctx) => __awaiter(void 0, void 0
         delete_breaking_headers(ctx);
         return (0, utils_1.build_action_processor_response)(action, true);
     }
-});
+};
 const delete_breaking_headers = (ctx) => {
     delete (0, proxy_ctx_helper_1.getResponseHeaders)(ctx)['content-length'];
 };
@@ -81,15 +94,15 @@ const modify_response = (ctx, new_resp, status_code) => {
 const modify_response_using_local = (action, ctx) => {
     let data;
     try {
-        data = fs_1.default.readFileSync(action.response, "utf-8");
+        data = (0, utils_1.get_file_contents)(action.response);
         modify_response(ctx, data, action.statusCode);
     }
     catch (err) {
-        console.log("Some Error while reading file");
+        console.log("Error reading file", err);
     }
 };
-const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, void 0, function* () {
-    var _b, _c, _d, _e;
+const modify_response_using_code = async (action, ctx) => {
+    var _a, _b, _c, _d;
     let userFunction = null;
     try {
         userFunction = (0, utils_2.getFunctionFromString)(action.response);
@@ -114,29 +127,18 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
                 : null,
             response: ctx === null || ctx === void 0 ? void 0 : ctx.rq_parsed_response_body,
             url: (0, proxy_ctx_helper_1.get_request_url)(ctx),
-            responseType: (_c = (_b = ctx === null || ctx === void 0 ? void 0 : ctx.serverToProxyResponse) === null || _b === void 0 ? void 0 : _b.headers) === null || _c === void 0 ? void 0 : _c["content-type"],
+            responseType: (_b = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.serverToProxyResponse) === null || _a === void 0 ? void 0 : _a.headers) === null || _b === void 0 ? void 0 : _b["content-type"],
             requestHeaders: ctx.clientToProxyRequest.headers,
-            requestData: (0, http_helpers_1.parseJsonBody)((_e = (_d = ctx.rq) === null || _d === void 0 ? void 0 : _d.final_request) === null || _e === void 0 ? void 0 : _e.body) || null,
+            requestData: (0, http_helpers_1.parseJsonBody)((_d = (_c = ctx.rq) === null || _c === void 0 ? void 0 : _c.final_request) === null || _d === void 0 ? void 0 : _d.body) || null,
             statusCode: ctx.serverToProxyResponse.statusCode,
         };
         try {
             args.responseJSON = JSON.parse(args.response);
         }
-        catch (_f) {
+        catch (_e) {
             /*Do nothing -- could not parse body as JSON */
         }
-        const consoleCapture = new capture_console_logs_1.default();
-        consoleCapture.start(true);
-        finalResponse = userFunction(args);
-        if (types.isPromise(finalResponse)) {
-            finalResponse = yield finalResponse;
-        }
-        consoleCapture.stop();
-        const consoleLogs = consoleCapture.getCaptures();
-        ctx.rq.consoleLogs.push(...consoleLogs);
-        if (typeof finalResponse === "object") {
-            finalResponse = JSON.stringify(finalResponse);
-        }
+        finalResponse = await (0, utils_2.executeUserFunction)(ctx, action.response, args);
         if (finalResponse && typeof finalResponse === "string") {
             return modify_response(ctx, finalResponse, action.statusCode);
         }
@@ -148,5 +150,5 @@ const modify_response_using_code = (action, ctx) => __awaiter(void 0, void 0, vo
         return modify_response(ctx, "Can't execute Requestly function. Please recheck. Error Code 187. Actual Error: " +
             error.message);
     }
-});
+};
 exports.default = process_modify_response_action;
