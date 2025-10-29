@@ -9,4 +9,5 @@ export function build_post_process_data(status_code: any, headers: any, body: an
     body: any;
 };
 export function get_success_actions_from_action_results(action_result_objs?: any[]): any[];
+export function getHost(ctx: any): any;
 export function get_file_contents(file_path: any): string;
