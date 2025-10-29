@@ -49,11 +49,16 @@ function isLocalHost(host) {
 
 export const getHost = (ctx) => {
   const finalHost = ctx.rq.final_request.host;
-  if(isLocalHost(finalHost) && ctx.rq.final_request.port) {
-    return `${finalHost}:${ctx.rq.final_request.port}`;
-  } else {
-    return finalHost
+  const port = ctx.rq.final_request.port;
+  const protocol = ctx.isSSL ? "https" : "http";
+  const standardPort = protocol === "https" ? 443 : 80;
+
+  // Only append port if it's non-standard and not already in the host
+  if (port && port !== standardPort && !finalHost.includes(':')) {
+    return `${finalHost}:${port}`;
   }
+
+  return finalHost;
 }
 
 export const get_file_contents = (file_path) => {
