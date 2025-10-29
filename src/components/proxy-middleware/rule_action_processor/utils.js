@@ -45,16 +45,10 @@ function isLocalHost(host) {
   return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
 }
 
-function isHTTPport(port) {
-  return port === "80" || port === "443";
-}
-
 export const getHost = (ctx) => {
   const finalHost = ctx.rq.final_request.host;
-  const originalURLOnConnect = ctx._originalUrl_;
-  const originalPort = originalURLOnConnect?.split(":")?.[1] || originalURLOnConnect?.split(":")?.[1] || null;
-  if(isLocalHost(finalHost) && originalPort && !isHTTPport(originalPort)) {
-    return `${finalHost}:${originalPort}`;
+  if(isLocalHost(finalHost) && ctx.rq.final_request.port) {
+    return `${finalHost}:${ctx.rq.final_request.port}`;
   } else {
     return finalHost
   }
