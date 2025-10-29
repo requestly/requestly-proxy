@@ -373,7 +373,6 @@ Proxy.prototype._onSocketError = function (socketDescription, err) {
 
 Proxy.prototype._onHttpServerConnect = function (req, socket, head) {
   var self = this;
-  self._originalUrl_ = req.url;
 
   socket.on("error", self._onSocketError.bind(self, "CLIENT_TO_PROXY_SOCKET"));
 
@@ -878,7 +877,6 @@ Proxy.prototype._onHttpServerRequest = function (
 ) {
   var self = this;
   var ctx = {
-    _originalUrl_: self._originalUrl_,
     uuid: uuidv4(),
     isSSL: isSSL,
     connectRequest:
