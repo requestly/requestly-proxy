@@ -71,7 +71,7 @@ class LoggerMiddleware {
             const rqLog = {
                 id: ctx.uuid,
                 timestamp: Math.floor(Date.now() / 1000),
-                finalHar: (0, harObectCreator_1.createHar)(ctx.rq.final_request.headers, ctx.rq.final_request.method, protocol, ctx.rq.final_request.host, ctx.rq.final_request.path, ctx.rq.final_request.body, ctx.rq.final_response.status_code, ctx.rq.final_response.body, ctx.rq.final_response.headers || {}, ctx.rq.final_request.query_params),
+                finalHar: (0, harObectCreator_1.createHar)(ctx.rq.final_request.headers, ctx.rq.final_request.method, protocol, (0, utils_1.getHost)(ctx), ctx.rq.final_request.path, ctx.rq.final_request.body, ctx.rq.final_response.status_code, ctx.rq.final_response.body, ctx.rq.final_response.headers || {}, ctx.rq.final_request.query_params),
                 requestShellCurl: this.generate_curl_from_har((_b = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _a === void 0 ? void 0 : _a.final_request) === null || _b === void 0 ? void 0 : _b.requestHarObject), // TODO: Move this to client side
                 actions: (0, utils_1.get_success_actions_from_action_results)(action_result_objs),
                 consoleLogs: (_c = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _c === void 0 ? void 0 : _c.consoleLogs,
