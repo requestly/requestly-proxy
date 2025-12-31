@@ -20,3 +20,20 @@ export const RQ_INTERCEPTED_CONTENT_TYPES = [
   "application/json",
   "application/manifest+json"
 ];
+
+export const RQ_INTERCEPTED_CONTENT_TYPES_REGEX = new RegExp(
+  [
+    'text/html',                      // HTML documents
+    'text/plain',                     // Plain text
+    'text/javascript',                // JavaScript files
+    'application/javascript',         // JavaScript (standard MIME)
+    'application/x-javascript',       // JavaScript (legacy)
+    'text/css',                       // CSS files
+    'application/css',                // CSS (alternative)
+    'application/json',               // JSON data
+    'application/.+\\+json',    // Web app manifests
+  ].join('|'), 
+  'i'
+);
+
+// console.log(RQ_INTERCEPTED_CONTENT_TYPES_REGEX);
