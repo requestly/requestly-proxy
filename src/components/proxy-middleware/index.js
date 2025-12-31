@@ -280,7 +280,6 @@ class ProxyMiddlewareManager {
         ctx.rq_response_status_code = getResponseStatusCode(ctx);
 
         if (RQ_INTERCEPTED_CONTENT_TYPES_REGEX.test(contentType) && parsedBody) {
-          console.log("intercepted body", contentType);
           ctx.rq_response_body = parsedBody;
           ctx.rq.set_original_response({ body: parsedBody });
         }
