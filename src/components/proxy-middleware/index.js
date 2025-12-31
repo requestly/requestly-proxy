@@ -287,10 +287,20 @@ class ProxyMiddlewareManager {
 
 
         const statusCode = ctx.rq_response_status_code || getResponseStatusCode(ctx);
+        const responseHeaders = getResponseHeaders(ctx);
+
+        // For 204/304/1xx, remove content headers to prevent errors
+        if (statusCode === 204 || statusCode === 304 || (statusCode >= 100 && statusCode < 200)) {
+          delete responseHeaders['content-length'];
+          delete responseHeaders['Content-Length'];
+          delete responseHeaders['transfer-encoding'];
+          delete responseHeaders['Transfer-Encoding'];
+        }
+
         ctx.proxyToClientResponse.writeHead(
           statusCode,
           http.STATUS_CODES[statusCode],
-          getResponseHeaders(ctx)
+          responseHeaders,
         );
 
         ctx.proxyToClientResponse.write(ctx.rq_response_body);
