@@ -31,7 +31,7 @@ export const RQ_INTERCEPTED_CONTENT_TYPES_REGEX = new RegExp(
     'text/css',                       // CSS files
     'application/css',                // CSS (alternative)
     'application/json',               // JSON data
-    'application/.+\\+json',    // Web app manifests
+    'application/.+\\+json',          // JSON-based media types (including vendor-specific like application/vnd.*)
   ].join('|'), 
   'i'
 );
