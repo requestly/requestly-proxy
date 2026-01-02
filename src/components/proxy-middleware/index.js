@@ -19,7 +19,7 @@ import LoggerMiddleware from "./middlewares/logger_middleware";
 import SslCertMiddleware from "./middlewares/ssl_cert_middleware";
 import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
-import { RQ_INTERCEPTED_CONTENT_TYPES, RULE_ACTION } from "./constants";
+import { RQ_INTERCEPTED_CONTENT_TYPES_REGEX, RULE_ACTION } from "./constants";
 import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
 import { dataToServeUnreachablePage, isAddressUnreachableError } from "./helpers/handleUnreachableAddress";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
@@ -223,7 +223,7 @@ class ProxyMiddlewareManager {
 
         let request_rule_applied = false;
 
-        if (parsedBody && RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType)) {
+        if (parsedBody && RQ_INTERCEPTED_CONTENT_TYPES_REGEX.test(contentType) ) {
           // Do modifications, if any
           const { action_result_objs, continue_request } = await rules_middleware.on_request_end(ctx);
           if(!continue_request) {
@@ -279,7 +279,7 @@ class ProxyMiddlewareManager {
         ctx.rq_parsed_response_body = parsedBody;
         ctx.rq_response_status_code = getResponseStatusCode(ctx);
 
-        if (RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) && parsedBody) {
+        if (RQ_INTERCEPTED_CONTENT_TYPES_REGEX.test(contentType) && parsedBody) {
           ctx.rq_response_body = parsedBody;
           ctx.rq.set_original_response({ body: parsedBody });
         }

@@ -7,7 +7,7 @@ import { getResponseContentTypeHeader, getResponseHeaders, get_request_url } fro
 import { build_action_processor_response, build_post_process_data, get_file_contents } from "../utils";
 import { getContentType, parseJsonBody } from "../../helpers/http_helpers";
 import { executeUserFunction, getFunctionFromString } from "../../../../utils";
-import { RQ_INTERCEPTED_CONTENT_TYPES } from "../../constants";
+import { RQ_INTERCEPTED_CONTENT_TYPES_REGEX } from "../../constants";
 
 const process_modify_response_action = async (action, ctx) => {
   const allowed_handlers = [
@@ -80,7 +80,7 @@ const process_modify_response_action = async (action, ctx) => {
   ) {
     const contentTypeHeader = getResponseContentTypeHeader(ctx);
     const contentType = getContentType(contentTypeHeader);
-    if (RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) || contentType == null) {
+    if (RQ_INTERCEPTED_CONTENT_TYPES_REGEX.test(contentType)  || contentType == null) {
       await modify_response_using_code(action, ctx);
       delete_breaking_headers(ctx);
       return build_action_processor_response(action, true);
