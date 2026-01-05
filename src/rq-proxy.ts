@@ -7,7 +7,7 @@ import ILoggerService from "./components/interfaces/logger-service";
 import IInitialState from "./components/interfaces/state";
 import GlobalStateProvider, {State} from "./components/proxy-middleware/middlewares/state";
 
-console.log("Testing");
+console.log("Testing2");
 class RQProxy {
     proxy: any;
     proxyMiddlewareManager!: ProxyMiddlewareManager;
