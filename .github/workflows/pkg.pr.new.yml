@@ -1,0 +1,23 @@
+name: Publish through pkr.pr.new
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '!**'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+        - uses: actions/checkout@v6
+        - uses: actions/setup-node@v6
+          with:
+            node-version: 24
+        - run: npm ci
+        - run: npm run build
+        - run: npx --yes pkg-pr-new publish --compact --comment=update
