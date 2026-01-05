@@ -73,6 +73,8 @@ jobs:
       ############# NPM RELEASE ##############
       - name: Publish to NPM
         run: npm publish --provenance --access public # Add npm --tag (dist-tag) later
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       
       - name: Success notification
         run: |
