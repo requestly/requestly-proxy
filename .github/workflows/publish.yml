@@ -1,0 +1,96 @@
+name: Publish Release
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  publish:
+    # Only run if PR is merged and comes from 'release' branch (from the same repo), or if manually triggered
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event.pull_request.merged == true && 
+       github.event.pull_request.head.label == 'requestly:release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    
+    steps:
+      - name: Release PR info
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "🎉 Release PR merged!"
+          echo "📋 PR #${{ github.event.number }}"
+          echo "🌿 Branch: ${{ github.event.pull_request.head.ref }}"
+      
+      - uses: actions/checkout@v6
+      
+      - name: Configure git
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build package
+        run: npm run build
+      
+      - name: Get package version
+        id: package-version
+        run: echo "current-version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      
+      - name: Extract release notes
+        id: extract-release-notes
+        uses: ffurrer2/extract-release-notes@v3
+      
+      ############# TAG RELEASE ##############
+      - name: "Push tag v${{ steps.package-version.outputs.current-version }}"
+        uses: rickstaa/action-create-tag@v1
+        id: tag_version
+        with:
+          tag: "v${{ steps.package-version.outputs.current-version }}"
+      
+      ############# GITHUB RELEASE ##############
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: "v${{ steps.package-version.outputs.current-version }}"
+          name: "v${{ steps.package-version.outputs.current-version }}"
+          body: ${{ steps.extract-release-notes.outputs.release_notes }}
+      
+      ############# NPM RELEASE ##############
+      - name: Publish to NPM
+        run: npm publish --provenance --access public # Add npm --tag (dist-tag) later
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
+      - name: Success notification
+        run: |
+          echo "::notice::✅ Successfully published @requestly/requestly-proxy@${{ steps.package-version.outputs.current-version }}"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✨ Release v${{ steps.package-version.outputs.current-version }} Published!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📦 NPM Package:"
+          echo "   https://www.npmjs.com/package/@requestly/requestly-proxy"
+          echo ""
+          echo "🏷️  Git Tag:"
+          echo "   v${{ steps.package-version.outputs.current-version }}"
+          echo ""
+          echo "📝 GitHub Release:"
+          echo "   https://github.com/${{ github.repository }}/releases/tag/v${{ steps.package-version.outputs.current-version }}"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
