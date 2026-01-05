@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RQ_INTERCEPTED_CONTENT_TYPES = exports.RULE_ACTION = void 0;
+exports.RQ_INTERCEPTED_CONTENT_TYPES_REGEX = exports.RQ_INTERCEPTED_CONTENT_TYPES = exports.RULE_ACTION = void 0;
 exports.RULE_ACTION = {
     REDIRECT: "redirect",
     MODIFY_HEADERS: "modify_headers",
@@ -22,3 +22,15 @@ exports.RQ_INTERCEPTED_CONTENT_TYPES = [
     "application/json",
     "application/manifest+json"
 ];
+exports.RQ_INTERCEPTED_CONTENT_TYPES_REGEX = new RegExp([
+    'text/html', // HTML documents
+    'text/plain', // Plain text
+    'text/javascript', // JavaScript files
+    'application/javascript', // JavaScript (standard MIME)
+    'application/x-javascript', // JavaScript (legacy)
+    'text/css', // CSS files
+    'application/css', // CSS (alternative)
+    'application/json', // JSON data
+    'application/.+\\+json', // JSON-based media types (including vendor-specific like application/vnd.*)
+].join('|'), 'i');
+// console.log(RQ_INTERCEPTED_CONTENT_TYPES_REGEX);

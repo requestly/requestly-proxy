@@ -9,3 +9,4 @@ export namespace RULE_ACTION {
     let MODIFY_REQUEST: string;
 }
 export const RQ_INTERCEPTED_CONTENT_TYPES: string[];
+export const RQ_INTERCEPTED_CONTENT_TYPES_REGEX: RegExp;
