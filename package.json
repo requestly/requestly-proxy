@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/requestly/rq-proxy.git"
+    "url": "git+https://github.com/requestly/requestly-proxy.git"
   },
   "exports": {
     ".": {
