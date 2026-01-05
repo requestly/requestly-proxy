@@ -27,6 +27,30 @@ const config: Config = {
     '@release-it/conventional-changelog': {
       preset: 'angular',
       infile: 'CHANGELOG.md',
+      parserOpts: {
+        headerPattern: /^(?:\[(.*)\]\s*)?(\w*)(?:\((.*)\))?: (.*)$/,
+        headerCorrespondence: ['ticket', 'type', 'scope', 'subject'],
+      },
+      writerOpts: {
+        transform: (commit: any) => {
+          // Make sure chore commits are included
+          if (commit.type === 'feat') {
+            commit.type = '✨ Features';
+          } else if (commit.type === 'fix') {
+            commit.type = '🐛 Bug Fixes';
+          } else if (commit.type === 'chore') {
+            commit.type = '🔧 Chores';
+          } else if (commit.type === 'refactor') {
+            commit.type = '♻️ Refactoring';
+          } else {
+            return; // Hide other types
+          }
+          
+          commit.subject = commit.header
+          
+          return commit;
+        },
+      },
     },
   },
 };
