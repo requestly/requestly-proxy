@@ -1,0 +1,106 @@
+name: Create Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      type:
+        type: choice
+        description: Choose release type
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+        default: auto
+
+jobs:
+  releaseIt:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      
+      - name: Configure git
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: npm
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build package
+        run: npm run build
+      
+      - name: Prepare release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TYPE_ARG: ${{ fromJSON('{"auto":"", "patch":"patch", "minor":"minor", "major":"major"}')[github.event.inputs.type] }}
+        run: npm run release -- $TYPE_ARG --ci --verbose --no-git.push --no-git.commit --no-git.tag --no-github.release
+      
+      - name: Show git status
+        if: failure()
+        run: git status && git diff
+      
+      - name: Get new version
+        id: package-version
+        run: echo "current-version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      
+      - name: Extract release notes
+        id: extract-release-notes
+        uses: ffurrer2/extract-release-notes@v3
+      
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        id: cpr
+        with:
+          branch: release
+          delete-branch: true
+          commit-message: 'chore(release): v${{ steps.package-version.outputs.current-version }}'
+          title: '[Release] v${{ steps.package-version.outputs.current-version }}'
+          body: |
+            ## Release v${{ steps.package-version.outputs.current-version }}
+            
+            This PR was automatically generated to release version **v${{ steps.package-version.outputs.current-version }}**.
+            
+            ### Changes
+            - 📦 Version bumped in `package.json`
+            - 📝 `CHANGELOG.md` updated with release notes
+            - 🔨 Package built and ready for publishing
+            
+            ### Release notes:
+            ${{ steps.extract-release-notes.outputs.release_notes }}
+            
+            ---
+            
+            ### What happens after merge?
+            When this PR is merged to main, the following will automatically happen:
+            1. ✅ Create git tag `v${{ steps.package-version.outputs.current-version }}`
+            2. ✅ Create GitHub release with release notes
+            3. ✅ Publish to npm registry as `@requestly/requestly-proxy@${{ steps.package-version.outputs.current-version }}`
+            
+            ---
+            **🚀 Ready to release? Review and merge this PR to publish!**
+          labels: |
+            release
+            bot
+          signoff: false
+          draft: false
+      
+      - name: Show PR link
+        if: ${{ steps.cpr.outputs.pull-request-url }}
+        run: |
+          echo "✨ Release PR created successfully!"
+          echo "🔗 ${{ steps.cpr.outputs.pull-request-url }}"
+          echo "📦 Version: v${{ steps.package-version.outputs.current-version }}"
