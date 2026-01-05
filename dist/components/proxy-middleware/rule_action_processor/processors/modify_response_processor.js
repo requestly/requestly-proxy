@@ -63,7 +63,7 @@ const process_modify_response_action = async (action, ctx) => {
         action.responseType === requestly_core_1.CONSTANTS.RESPONSE_BODY_TYPES.CODE) {
         const contentTypeHeader = (0, proxy_ctx_helper_1.getResponseContentTypeHeader)(ctx);
         const contentType = (0, http_helpers_1.getContentType)(contentTypeHeader);
-        if (constants_1.RQ_INTERCEPTED_CONTENT_TYPES.includes(contentType) || contentType == null) {
+        if (constants_1.RQ_INTERCEPTED_CONTENT_TYPES_REGEX.test(contentType) || contentType == null) {
             await modify_response_using_code(action, ctx);
             delete_breaking_headers(ctx);
             return (0, utils_1.build_action_processor_response)(action, true);
