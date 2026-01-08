@@ -1,0 +1,6 @@
+# CODEOWNERS file for requestly-proxy
+# These owners will be requested for review when someone opens a pull request.
+
+# Default owners for everything in the repo
+* @wrongsahil @nsrcodes
+
