@@ -1,5 +1,18 @@
 
 
+# [1.4.0](https://github.com/requestly/requestly-proxy/compare/v1.3.14...v1.4.0) (2026-05-19)
+
+
+### ✨ Features
+
+* feat: serve amiusing.requestly.io response inline from the proxy (#99) ([](https://github.com/requestly/requestly-proxy/commit/592de1664fa26498ad256a30d6bdec6be33da41f)), closes [#99](https://github.com/requestly/requestly-proxy/issues/99)
+
+
+### 🔧 Chores
+
+* chore: add pkg.pr.new support ([](https://github.com/requestly/requestly-proxy/commit/5e99a5d5c5a12db009ef405077b164bb73f7edf8))
+* chore: added codeowners ([](https://github.com/requestly/requestly-proxy/commit/fcf19c0a5ed518f2aff8593fd9156ce9ec52d6e1))
+
 ## [1.3.14](https://github.com/requestly/requestly-proxy/compare/v1.3.13...v1.3.14) (2026-01-05)
 
 ## [1.3.13](https://github.com/requestly/rq-proxy/compare/v1.3.12...v1.3.13) (2026-01-05)
