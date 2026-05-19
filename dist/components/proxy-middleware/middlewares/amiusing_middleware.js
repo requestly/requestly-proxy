@@ -22,6 +22,10 @@ class AmisuingMiddleware {
             ctx.proxyToClientResponse.writeHead(200, {
                 "Content-Type": "text/html",
                 "Cache-Control": "no-store",
+                // Echo the legacy request-side marker as a response header too so any
+                // downstream consumer that historically inspected `amiusingrequestly`
+                // continues to see it after we stopped forwarding upstream.
+                "amiusingrequestly": "true",
             });
             ctx.proxyToClientResponse.end(amiusing_yes_page_1.AMIUSING_YES_HTML);
         };
