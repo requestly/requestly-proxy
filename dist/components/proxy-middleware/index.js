@@ -75,9 +75,13 @@ class ProxyMiddlewareManager {
             const is_detachable = true;
             const logger_middleware = new logger_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.LOGGER], this.loggerService);
             const idx = this.init_request_handler(async (ctx, callback) => {
+                var _a;
                 ctx.rq = new ctx_rq_namespace_1.default();
                 ctx.rq.set_original_request((0, proxy_ctx_helper_1.get_request_options)(ctx));
-                ctx.proxyToServerRequestOptions.rejectUnauthorized = false;
+                // RQ-2425: verify upstream TLS certificates by default. Only skip
+                // verification when the user has explicitly opted in (e.g. to reach a
+                // self-signed / internal upstream). Defaults to secure when unset.
+                ctx.proxyToServerRequestOptions.rejectUnauthorized = !((_a = this.proxyConfig) === null || _a === void 0 ? void 0 : _a.allowInsecureCerts);
                 // Figure out a way to enable/disable middleware dynamically
                 // instead of re-initing this again
                 const rules_middleware = new rules_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.RULES], ctx, this.rulesHelper);

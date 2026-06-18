@@ -4,6 +4,7 @@ export interface ProxyConfig {
     certPath: String;
     rootCertPath: String;
     onCARegenerated?: Function;
+    allowInsecureCerts?: boolean;
 }
 export interface Rule {
     id: string;
