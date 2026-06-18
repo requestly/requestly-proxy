@@ -94,6 +94,7 @@ class ProxyMiddlewareManager {
                 // instead of re-initing this again
                 const rules_middleware = new rules_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.RULES], ctx, this.rulesHelper);
                 ctx.onError(async function (ctx, err, kind, callback) {
+                    var _a, _b;
                     // Should only modify response body & headers
                     ctx.rq_response_body = "" + kind + ": " + err, "utf8";
                     const { action_result_objs, continue_request } = await rules_middleware.on_response(ctx);
@@ -114,9 +115,31 @@ class ProxyMiddlewareManager {
                         }
                     }
                     else if (kind === "PROXY_TO_SERVER_REQUEST_ERROR") {
+                        const host = (0, proxy_ctx_helper_1.get_request_url)(ctx);
+                        // RQ-2425: upstream TLS cert verification failed (e.g. "Allow insecure
+                        // SSL" is OFF and the origin has an untrusted/expired/self-signed cert).
+                        // Serve a clear SSL error instead of a misleading ERR_NAME_NOT_RESOLVED.
+                        if ((0, handleUnreachableAddress_1.isCertificateError)(err)) {
+                            const { status, contentType, body, errorToken } = (0, handleUnreachableAddress_1.dataToServeCertErrorPage)(host, err === null || err === void 0 ? void 0 : err.code);
+                            ctx.proxyToClientResponse.writeHead(status, http_1.default.STATUS_CODES[status], {
+                                "Content-Type": contentType,
+                                "x-rq-error": errorToken,
+                            });
+                            ctx.proxyToClientResponse.end(body);
+                            ctx.rq.set_final_response({
+                                status_code: status,
+                                headers: { "Content-Type": contentType },
+                                body: body,
+                            });
+                            logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
+                            return;
+                        }
                         try {
-                            const host = (0, proxy_ctx_helper_1.get_request_url)(ctx);
-                            const isAddressUnreachable = await (0, handleUnreachableAddress_1.isAddressUnreachableError)(host);
+                            // Resolve against a clean hostname (headers.host minus any port), not
+                            // the full request URL — dns.lookup() can't parse a URL and would
+                            // otherwise report every upstream error as ENOTFOUND.
+                            const hostname = (((_b = (_a = ctx.clientToProxyRequest) === null || _a === void 0 ? void 0 : _a.headers) === null || _b === void 0 ? void 0 : _b.host) || "").split(":")[0];
+                            const isAddressUnreachable = await (0, handleUnreachableAddress_1.isAddressUnreachableError)(hostname);
                             if (isAddressUnreachable) {
                                 const { status, contentType, body } = (0, handleUnreachableAddress_1.dataToServeUnreachablePage)(host);
                                 ctx.proxyToClientResponse.writeHead(status, http_1.default.STATUS_CODES[status], {

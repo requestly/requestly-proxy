@@ -21,7 +21,7 @@ import CtxRQNamespace from "./helpers/ctx_rq_namespace";
 import { bodyParser, getContentType } from "./helpers/http_helpers";
 import { RQ_INTERCEPTED_CONTENT_TYPES_REGEX, RULE_ACTION } from "./constants";
 import { CONSTANTS as GLOBAL_CONSTANTS } from "@requestly/requestly-core";
-import { dataToServeUnreachablePage, isAddressUnreachableError } from "./helpers/handleUnreachableAddress";
+import { dataToServeUnreachablePage, isAddressUnreachableError, isCertificateError, dataToServeCertErrorPage } from "./helpers/handleUnreachableAddress";
 // import SSLProxyingConfigFetcher from "renderer/lib/fetcher/ssl-proxying-config-fetcher";
 // import SSLProxyingManager from "../ssl-proxying/ssl-proxying-manager";
 
@@ -178,9 +178,41 @@ class ProxyMiddlewareManager {
             )
           } 
         } else if (kind === "PROXY_TO_SERVER_REQUEST_ERROR") {
+          const host = get_request_url(ctx);
+
+          // RQ-2425: upstream TLS cert verification failed (e.g. "Allow insecure
+          // SSL" is OFF and the origin has an untrusted/expired/self-signed cert).
+          // Serve a clear SSL error instead of a misleading ERR_NAME_NOT_RESOLVED.
+          if (isCertificateError(err)) {
+            const { status, contentType, body, errorToken } = dataToServeCertErrorPage(host, err?.code);
+            ctx.proxyToClientResponse.writeHead(
+              status,
+              http.STATUS_CODES[status],
+              {
+                "Content-Type": contentType,
+                "x-rq-error": errorToken,
+              }
+            );
+            ctx.proxyToClientResponse.end(body);
+            ctx.rq.set_final_response({
+              status_code: status,
+              headers: { "Content-Type": contentType },
+              body: body,
+            });
+            logger_middleware.send_network_log(
+              ctx,
+              rules_middleware.action_result_objs,
+              GLOBAL_CONSTANTS.REQUEST_STATE.COMPLETE
+            );
+            return;
+          }
+
           try {
-            const host = get_request_url(ctx);
-            const isAddressUnreachable = await isAddressUnreachableError(host);
+            // Resolve against a clean hostname (headers.host minus any port), not
+            // the full request URL — dns.lookup() can't parse a URL and would
+            // otherwise report every upstream error as ENOTFOUND.
+            const hostname = (ctx.clientToProxyRequest?.headers?.host || "").split(":")[0];
+            const isAddressUnreachable = await isAddressUnreachableError(hostname);
             if (isAddressUnreachable) {
               const { status, contentType, body } = dataToServeUnreachablePage(host);
               ctx.proxyToClientResponse.writeHead(
