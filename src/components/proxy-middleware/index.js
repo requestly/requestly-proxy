@@ -61,6 +61,15 @@ class ProxyMiddlewareManager {
     // this.sslProxyingManager = new SSLProxyingManager(sslConfigFetcher);
   }
 
+  // RQ-2425: update the upstream-TLS-verification policy on the running proxy.
+  // The per-request handler reads `this.proxyConfig.allowInsecureCerts`, so
+  // mutating it here takes effect on the next request — no proxy restart.
+  setAllowInsecureCerts = (value) => {
+    if (this.proxyConfig) {
+      this.proxyConfig.allowInsecureCerts = !!value;
+    }
+  };
+
   /* NOT USEFUL */
   init_config = (config = {}) => {
     Object.keys(MIDDLEWARE_TYPE).map((middleware_key) => {

@@ -47,6 +47,11 @@ class RQProxy {
             });
             //
         };
+        // RQ-2425: live-update upstream TLS verification without restarting the proxy.
+        this.setAllowInsecureCerts = (value) => {
+            var _a, _b;
+            (_b = (_a = this.proxyMiddlewareManager) === null || _a === void 0 ? void 0 : _a.setAllowInsecureCerts) === null || _b === void 0 ? void 0 : _b.call(_a, value);
+        };
         this.doSomething = () => {
             console.log("do something");
         };
