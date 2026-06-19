@@ -25,16 +25,9 @@ const modify_request = (ctx, new_req) => {
         ctx.rq_request_body = new_req;
 };
 const modify_request_using_code = async (action, ctx) => {
-    let userFunction = null;
-    try {
-        userFunction = (0, utils_2.getFunctionFromString)(action.request);
-    }
-    catch (error) {
-        // User has provided an invalid function
-        return modify_request(ctx, "Can't parse Requestly function. Please recheck. Error Code 7201. Actual Error: " +
-            error.message);
-    }
-    if (!userFunction || typeof userFunction !== "function") {
+    // RQ-2426: validate the function source parses (in an isolate, without
+    // executing it) before running it sandboxed.
+    if (!(await (0, utils_2.isValidFunctionString)(action.request))) {
         // User has provided an invalid function
         return modify_request(ctx, "Can't parse Requestly function. Please recheck. Error Code 944.");
     }
@@ -58,7 +51,7 @@ const modify_request_using_code = async (action, ctx) => {
         catch (_a) {
             /*Do nothing -- could not parse body as JSON */
         }
-        finalRequest = await (0, utils_2.executeUserFunction)(ctx, userFunction, args);
+        finalRequest = await (0, utils_2.executeUserFunction)(ctx, action.request, args);
         if (finalRequest && typeof finalRequest === "string") {
             return modify_request(ctx, finalRequest);
         }
