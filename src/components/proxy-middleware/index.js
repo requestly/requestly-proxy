@@ -210,8 +210,15 @@ class ProxyMiddlewareManager {
           try {
             // Resolve against a clean hostname (headers.host minus any port), not
             // the full request URL — dns.lookup() can't parse a URL and would
-            // otherwise report every upstream error as ENOTFOUND.
-            const hostname = (ctx.clientToProxyRequest?.headers?.host || "").split(":")[0];
+            // otherwise report every upstream error as ENOTFOUND. Parse via URL so
+            // IPv6 literals (e.g. "[::1]:443") are handled correctly, not split on ":".
+            const rawHost = ctx.clientToProxyRequest?.headers?.host || "";
+            let hostname = rawHost;
+            try {
+              hostname = new URL(`http://${rawHost}`).hostname.replace(/^\[|\]$/g, "");
+            } catch (e) {
+              hostname = rawHost.replace(/:\d+$/, "");
+            }
             const isAddressUnreachable = await isAddressUnreachableError(hostname);
             if (isAddressUnreachable) {
               const { status, contentType, body } = dataToServeUnreachablePage(host);

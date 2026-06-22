@@ -9,6 +9,16 @@ exports.certErrorToken = certErrorToken;
 exports.dataToServeCertErrorPage = dataToServeCertErrorPage;
 exports.dataToServeUnreachablePage = dataToServeUnreachablePage;
 const dns_1 = __importDefault(require("dns"));
+// Escape request-derived values before embedding them into the HTML error pages
+// so a crafted host/URL can't inject markup/script (reflected injection).
+function escapeHtml(value) {
+    return String(value === undefined || value === null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 function isAddressUnreachableError(host) {
     return new Promise((resolve, reject) => {
         dns_1.default.lookup(host, (err, address) => {
@@ -69,6 +79,8 @@ function certErrorToken(code) {
 }
 function dataToServeCertErrorPage(host, code) {
     const token = certErrorToken(code);
+    const safeHost = escapeHtml(host);
+    const safeCode = escapeHtml(code);
     return {
         status: 502,
         contentType: 'text/html',
@@ -128,7 +140,7 @@ function dataToServeCertErrorPage(host, code) {
     <div class="container">
         <div class="sad-face">:(</div>
         <h1>This site's SSL certificate isn't trusted</h1>
-        <p>Requestly couldn't verify the TLS certificate of <strong>${host}</strong>${code ? ` (<code>${code}</code>)` : ''}.</p>
+        <p>Requestly couldn't verify the TLS certificate of <strong>${safeHost}</strong>${code ? ` (<code>${safeCode}</code>)` : ''}.</p>
         <p>If you trust this host, enable <strong>“Allow insecure SSL in proxy interceptor”</strong> in Requestly desktop settings and reload.</p>
         <p><strong>${token}</strong></p>
     </div>
@@ -190,7 +202,7 @@ function dataToServeUnreachablePage(host) {
     <div class="container">
         <div class="sad-face">:(</div>
         <h1>This site can’t be reached</h1>
-        <p>The webpage at <strong>${host}/</strong> might be temporarily down or it may have moved permanently to a new web address.</p>
+        <p>The webpage at <strong>${escapeHtml(host)}/</strong> might be temporarily down or it may have moved permanently to a new web address.</p>
         <p><strong>ERR_NAME_NOT_RESOLVED</strong></p>
     </div>
 </body>
