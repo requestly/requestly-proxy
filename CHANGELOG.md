@@ -1,5 +1,7 @@
 
 
+# [1.5.0](https://github.com/requestly/requestly-proxy/compare/v1.4.0...v1.5.0) (2026-06-22)
+
 # [1.4.0](https://github.com/requestly/requestly-proxy/compare/v1.3.14...v1.4.0) (2026-05-19)
 
 
