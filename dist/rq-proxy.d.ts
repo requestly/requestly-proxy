@@ -11,8 +11,10 @@ declare class RQProxy {
     rulesHelper: RulesHelper;
     loggerService: ILoggerService;
     globalState: State;
+    private allowInsecureCerts?;
     constructor(proxyConfig: ProxyConfig, rulesDataSource: IRulesDataSource, loggerService: ILoggerService, initialGlobalState?: IInitialState);
     initProxy: (proxyConfig: ProxyConfig) => void;
+    setAllowInsecureCerts: (value: boolean) => void;
     doSomething: () => void;
 }
 export default RQProxy;

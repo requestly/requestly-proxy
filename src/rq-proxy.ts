@@ -16,6 +16,10 @@ class RQProxy {
     loggerService: ILoggerService;
     globalState: State;
 
+    // RQ-2425: remembered so a toggle set before the middleware manager exists
+    // (early in startup) isn't lost — it's replayed once the manager is created.
+    private allowInsecureCerts?: boolean;
+
     constructor(
         proxyConfig: ProxyConfig, 
         rulesDataSource: IRulesDataSource, 
@@ -52,6 +56,10 @@ class RQProxy {
                     console.log("Proxy Started");
                     this.proxyMiddlewareManager = new ProxyMiddlewareManager(this.proxy, proxyConfig, this.rulesHelper, this.loggerService, null);
                     this.proxyMiddlewareManager.init();
+                    // Replay a toggle that was set before the manager existed.
+                    if (this.allowInsecureCerts !== undefined) {
+                        this.proxyMiddlewareManager.setAllowInsecureCerts?.(this.allowInsecureCerts);
+                    }
                 }
             }
         );
@@ -69,6 +77,14 @@ class RQProxy {
             return callback();
         });
         //
+    }
+
+    // RQ-2425: live-update upstream TLS verification without restarting the proxy.
+    // Remembers the value so it survives even if set before the middleware manager
+    // is ready (replayed in initProxy once the manager is created).
+    setAllowInsecureCerts = (value: boolean) => {
+        this.allowInsecureCerts = !!value;
+        this.proxyMiddlewareManager?.setAllowInsecureCerts?.(this.allowInsecureCerts);
     }
 
     doSomething = () => {

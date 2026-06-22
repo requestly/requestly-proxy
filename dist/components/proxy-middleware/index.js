@@ -29,6 +29,14 @@ exports.MIDDLEWARE_TYPE = {
 };
 class ProxyMiddlewareManager {
     constructor(proxy, proxyConfig, rulesHelper, loggerService, sslConfigFetcher) {
+        // RQ-2425: update the upstream-TLS-verification policy on the running proxy.
+        // The per-request handler reads `this.proxyConfig.allowInsecureCerts`, so
+        // mutating it here takes effect on the next request — no proxy restart.
+        this.setAllowInsecureCerts = (value) => {
+            if (this.proxyConfig) {
+                this.proxyConfig.allowInsecureCerts = !!value;
+            }
+        };
         /* NOT USEFUL */
         this.init_config = (config = {}) => {
             Object.keys(exports.MIDDLEWARE_TYPE).map((middleware_key) => {
@@ -75,13 +83,18 @@ class ProxyMiddlewareManager {
             const is_detachable = true;
             const logger_middleware = new logger_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.LOGGER], this.loggerService);
             const idx = this.init_request_handler(async (ctx, callback) => {
+                var _a;
                 ctx.rq = new ctx_rq_namespace_1.default();
                 ctx.rq.set_original_request((0, proxy_ctx_helper_1.get_request_options)(ctx));
-                ctx.proxyToServerRequestOptions.rejectUnauthorized = false;
+                // RQ-2425: verify upstream TLS certificates by default. Only skip
+                // verification when the user has explicitly opted in (e.g. to reach a
+                // self-signed / internal upstream). Defaults to secure when unset.
+                ctx.proxyToServerRequestOptions.rejectUnauthorized = !((_a = this.proxyConfig) === null || _a === void 0 ? void 0 : _a.allowInsecureCerts);
                 // Figure out a way to enable/disable middleware dynamically
                 // instead of re-initing this again
                 const rules_middleware = new rules_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.RULES], ctx, this.rulesHelper);
                 ctx.onError(async function (ctx, err, kind, callback) {
+                    var _a, _b;
                     // Should only modify response body & headers
                     ctx.rq_response_body = "" + kind + ": " + err, "utf8";
                     const { action_result_objs, continue_request } = await rules_middleware.on_response(ctx);
@@ -102,9 +115,39 @@ class ProxyMiddlewareManager {
                         }
                     }
                     else if (kind === "PROXY_TO_SERVER_REQUEST_ERROR") {
+                        const host = (0, proxy_ctx_helper_1.get_request_url)(ctx);
+                        // RQ-2425: upstream TLS cert verification failed (e.g. "Allow insecure
+                        // SSL" is OFF and the origin has an untrusted/expired/self-signed cert).
+                        // Serve a clear SSL error instead of a misleading ERR_NAME_NOT_RESOLVED.
+                        if ((0, handleUnreachableAddress_1.isCertificateError)(err)) {
+                            const { status, contentType, body, errorToken } = (0, handleUnreachableAddress_1.dataToServeCertErrorPage)(host, err === null || err === void 0 ? void 0 : err.code);
+                            ctx.proxyToClientResponse.writeHead(status, http_1.default.STATUS_CODES[status], {
+                                "Content-Type": contentType,
+                                "x-rq-error": errorToken,
+                            });
+                            ctx.proxyToClientResponse.end(body);
+                            ctx.rq.set_final_response({
+                                status_code: status,
+                                headers: { "Content-Type": contentType },
+                                body: body,
+                            });
+                            logger_middleware.send_network_log(ctx, rules_middleware.action_result_objs, requestly_core_1.CONSTANTS.REQUEST_STATE.COMPLETE);
+                            return;
+                        }
                         try {
-                            const host = (0, proxy_ctx_helper_1.get_request_url)(ctx);
-                            const isAddressUnreachable = await (0, handleUnreachableAddress_1.isAddressUnreachableError)(host);
+                            // Resolve against a clean hostname (headers.host minus any port), not
+                            // the full request URL — dns.lookup() can't parse a URL and would
+                            // otherwise report every upstream error as ENOTFOUND. Parse via URL so
+                            // IPv6 literals (e.g. "[::1]:443") are handled correctly, not split on ":".
+                            const rawHost = ((_b = (_a = ctx.clientToProxyRequest) === null || _a === void 0 ? void 0 : _a.headers) === null || _b === void 0 ? void 0 : _b.host) || "";
+                            let hostname = rawHost;
+                            try {
+                                hostname = new URL(`http://${rawHost}`).hostname.replace(/^\[|\]$/g, "");
+                            }
+                            catch (e) {
+                                hostname = rawHost.replace(/:\d+$/, "");
+                            }
+                            const isAddressUnreachable = await (0, handleUnreachableAddress_1.isAddressUnreachableError)(hostname);
                             if (isAddressUnreachable) {
                                 const { status, contentType, body } = (0, handleUnreachableAddress_1.dataToServeUnreachablePage)(host);
                                 ctx.proxyToClientResponse.writeHead(status, http_1.default.STATUS_CODES[status], {

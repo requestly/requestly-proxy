@@ -24,6 +24,7 @@ class RQProxy {
                 sslCaDir: proxyConfig.certPath,
                 host: "0.0.0.0",
             }, (err) => {
+                var _a, _b;
                 console.log("Proxy Listen");
                 if (err) {
                     console.log(err);
@@ -32,6 +33,10 @@ class RQProxy {
                     console.log("Proxy Started");
                     this.proxyMiddlewareManager = new proxy_middleware_1.default(this.proxy, proxyConfig, this.rulesHelper, this.loggerService, null);
                     this.proxyMiddlewareManager.init();
+                    // Replay a toggle that was set before the manager existed.
+                    if (this.allowInsecureCerts !== undefined) {
+                        (_b = (_a = this.proxyMiddlewareManager).setAllowInsecureCerts) === null || _b === void 0 ? void 0 : _b.call(_a, this.allowInsecureCerts);
+                    }
                 }
             });
             // For Testing //
@@ -46,6 +51,14 @@ class RQProxy {
                 return callback();
             });
             //
+        };
+        // RQ-2425: live-update upstream TLS verification without restarting the proxy.
+        // Remembers the value so it survives even if set before the middleware manager
+        // is ready (replayed in initProxy once the manager is created).
+        this.setAllowInsecureCerts = (value) => {
+            var _a, _b;
+            this.allowInsecureCerts = !!value;
+            (_b = (_a = this.proxyMiddlewareManager) === null || _a === void 0 ? void 0 : _a.setAllowInsecureCerts) === null || _b === void 0 ? void 0 : _b.call(_a, this.allowInsecureCerts);
         };
         this.doSomething = () => {
             console.log("do something");
