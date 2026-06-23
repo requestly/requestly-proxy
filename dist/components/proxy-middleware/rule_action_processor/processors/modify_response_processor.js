@@ -103,16 +103,9 @@ const modify_response_using_local = (action, ctx) => {
 };
 const modify_response_using_code = async (action, ctx) => {
     var _a, _b, _c, _d;
-    let userFunction = null;
-    try {
-        userFunction = (0, utils_2.getFunctionFromString)(action.response);
-    }
-    catch (error) {
-        // User has provided an invalid function
-        return modify_response(ctx, "Can't parse Requestly function. Please recheck. Error Code 7201. Actual Error: " +
-            error.message);
-    }
-    if (!userFunction || typeof userFunction !== "function") {
+    // RQ-2426: validate the function source parses (compile-only, no execution)
+    // before running it in the sandboxed worker.
+    if (!(await (0, utils_2.isValidFunctionString)(action.response))) {
         // User has provided an invalid function
         return modify_response(ctx, "Can't parse Requestly function. Please recheck. Error Code 944.");
     }
