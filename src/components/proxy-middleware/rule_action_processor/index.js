@@ -48,7 +48,9 @@ class RuleActionProcessor {
         body = JSON.stringify(body);
       }
 
-      ctx.proxyToClientResponse.writeHead(status_code, headers).end(body);
+      if (!ctx.proxyToClientResponse.headersSent) {
+        ctx.proxyToClientResponse.writeHead(status_code, headers).end(body);
+      }
       ctx.rq.request_finished = true;
 
       ctx.rq.set_final_response({

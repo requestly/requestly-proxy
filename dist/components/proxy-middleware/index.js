@@ -103,7 +103,9 @@ class ProxyMiddlewareManager {
                     if (modifyResponseActionExist) {
                         const statusCode = ctx.rq_response_status_code || 404;
                         const responseHeaders = (0, proxy_ctx_helper_1.getResponseHeaders)(ctx) || {};
-                        ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], responseHeaders);
+                        if (!ctx.proxyToClientResponse.headersSent) {
+                            ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], responseHeaders);
+                        }
                         ctx.proxyToClientResponse.end(ctx.rq_response_body);
                         ctx.rq.set_final_response({
                             status_code: statusCode,
@@ -121,10 +123,12 @@ class ProxyMiddlewareManager {
                         // Serve a clear SSL error instead of a misleading ERR_NAME_NOT_RESOLVED.
                         if ((0, handleUnreachableAddress_1.isCertificateError)(err)) {
                             const { status, contentType, body, errorToken } = (0, handleUnreachableAddress_1.dataToServeCertErrorPage)(host, err === null || err === void 0 ? void 0 : err.code);
-                            ctx.proxyToClientResponse.writeHead(status, http_1.default.STATUS_CODES[status], {
-                                "Content-Type": contentType,
-                                "x-rq-error": errorToken,
-                            });
+                            if (!ctx.proxyToClientResponse.headersSent) {
+                                ctx.proxyToClientResponse.writeHead(status, http_1.default.STATUS_CODES[status], {
+                                    "Content-Type": contentType,
+                                    "x-rq-error": errorToken,
+                                });
+                            }
                             ctx.proxyToClientResponse.end(body);
                             ctx.rq.set_final_response({
                                 status_code: status,
@@ -150,10 +154,12 @@ class ProxyMiddlewareManager {
                             const isAddressUnreachable = await (0, handleUnreachableAddress_1.isAddressUnreachableError)(hostname);
                             if (isAddressUnreachable) {
                                 const { status, contentType, body } = (0, handleUnreachableAddress_1.dataToServeUnreachablePage)(host);
-                                ctx.proxyToClientResponse.writeHead(status, http_1.default.STATUS_CODES[status], {
-                                    "Content-Type": contentType,
-                                    "x-rq-error": "ERR_NAME_NOT_RESOLVED"
-                                });
+                                if (!ctx.proxyToClientResponse.headersSent) {
+                                    ctx.proxyToClientResponse.writeHead(status, http_1.default.STATUS_CODES[status], {
+                                        "Content-Type": contentType,
+                                        "x-rq-error": "ERR_NAME_NOT_RESOLVED"
+                                    });
+                                }
                                 ctx.proxyToClientResponse.end(body);
                                 ctx.rq.set_final_response({
                                     status_code: status,
@@ -246,7 +252,11 @@ class ProxyMiddlewareManager {
                         delete responseHeaders['transfer-encoding'];
                         delete responseHeaders['Transfer-Encoding'];
                     }
-                    ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], responseHeaders);
+                    // Node 24 commits headers on writeHead and throws on a second call;
+                    // guard so a re-entrant write can't crash the response pipeline.
+                    if (!ctx.proxyToClientResponse.headersSent) {
+                        ctx.proxyToClientResponse.writeHead(statusCode, http_1.default.STATUS_CODES[statusCode], responseHeaders);
+                    }
                     ctx.proxyToClientResponse.write(ctx.rq_response_body);
                     ctx.rq.set_final_response({
                         ...(0, proxy_ctx_helper_1.get_response_options)(ctx),
