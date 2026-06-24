@@ -277,20 +277,25 @@ exports.isValidFunctionString = isValidFunctionString;
 async function executeUserFunction(ctx, functionString, args) {
     var _a, _b, _c, _d, _e;
     let argsJson = "{}";
-    let sharedStateJson = "{}";
     try {
         argsJson = JSON.stringify(args !== null && args !== void 0 ? args : {});
     }
     catch (_f) {
         argsJson = "{}";
     }
+    const QuickJS = await getQuickJSModule();
+    // Read the $sharedState snapshot AFTER the last await. Everything from here
+    // to setSharedState() below runs synchronously (no further yields), so the
+    // read-modify-write is atomic w.r.t. the event loop. Reading before the
+    // await would let a concurrent executeUserFunction commit in the gap, and
+    // this call's stale snapshot would then clobber it (last-writer-wins).
+    let sharedStateJson = "{}";
     try {
         sharedStateJson = JSON.stringify((_a = state_1.default.getInstance().getSharedStateCopy()) !== null && _a !== void 0 ? _a : {});
     }
     catch (_g) {
         sharedStateJson = "{}";
     }
-    const QuickJS = await getQuickJSModule();
     const vm = QuickJS.newContext();
     try {
         vm.runtime.setMemoryLimit(MEMORY_LIMIT_BYTES);
@@ -329,7 +334,11 @@ async function executeUserFunction(ctx, functionString, args) {
         // Success variant — dispose the completion value (we read __OUTPUT instead).
         evalResult.value.dispose();
         // Resolve the user fn's (possibly async-but-IO-free) promise microtasks.
-        vm.runtime.executePendingJobs();
+        // On a job error / deadline interrupt the result carries a QuickJSHandle;
+        // dispose it eagerly (vm.dispose() in finally would reclaim it too).
+        const jobs = vm.runtime.executePendingJobs();
+        if (jobs.error)
+            jobs.error.dispose();
         const outHandle = vm.getProp(vm.global, "__OUTPUT");
         const output = vm.dump(outHandle);
         outHandle.dispose();

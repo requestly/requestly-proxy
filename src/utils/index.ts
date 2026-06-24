@@ -284,12 +284,20 @@ export async function executeUserFunction(
   args: any
 ): Promise<any> {
   let argsJson = "{}";
-  let sharedStateJson = "{}";
   try {
     argsJson = JSON.stringify(args ?? {});
   } catch {
     argsJson = "{}";
   }
+
+  const QuickJS = await getQuickJSModule();
+
+  // Read the $sharedState snapshot AFTER the last await. Everything from here
+  // to setSharedState() below runs synchronously (no further yields), so the
+  // read-modify-write is atomic w.r.t. the event loop. Reading before the
+  // await would let a concurrent executeUserFunction commit in the gap, and
+  // this call's stale snapshot would then clobber it (last-writer-wins).
+  let sharedStateJson = "{}";
   try {
     sharedStateJson = JSON.stringify(
       GlobalStateProvider.getInstance().getSharedStateCopy() ?? {}
@@ -298,7 +306,6 @@ export async function executeUserFunction(
     sharedStateJson = "{}";
   }
 
-  const QuickJS = await getQuickJSModule();
   const vm = QuickJS.newContext();
 
   try {
@@ -345,7 +352,10 @@ export async function executeUserFunction(
     (evalResult as { value: { dispose(): void } }).value.dispose();
 
     // Resolve the user fn's (possibly async-but-IO-free) promise microtasks.
-    vm.runtime.executePendingJobs();
+    // On a job error / deadline interrupt the result carries a QuickJSHandle;
+    // dispose it eagerly (vm.dispose() in finally would reclaim it too).
+    const jobs = vm.runtime.executePendingJobs();
+    if (jobs.error) jobs.error.dispose();
 
     const outHandle = vm.getProp(vm.global, "__OUTPUT");
     const output = vm.dump(outHandle);
