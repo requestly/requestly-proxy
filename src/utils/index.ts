@@ -79,6 +79,185 @@ const SANDBOX_SETUP = [
   "var __OUTPUT = null;",
 ].join("");
 
+// Pure-JS polyfills for common Web/Node globals that QuickJS (a bare ECMAScript
+// engine) does not provide. All implemented INSIDE the sandbox using only QuickJS
+// built-ins — no host object crosses the boundary, so they add no escape surface
+// (same safety model as atob/btoa). `String.raw` keeps regex backslashes literal.
+// NOTE: `crypto` here is NOT cryptographically secure (Math.random-based) — it is
+// only for id/random generation; secure RNG / crypto.subtle would need a host bridge.
+const SANDBOX_POLYFILLS = String.raw`
+(function (g) {
+  "use strict";
+
+  // ---- URLSearchParams ----
+  function URLSearchParams(init) {
+    this.__l = [];
+    var self = this;
+    if (init == null || init === "") { /* empty */ }
+    else if (typeof init === "string") {
+      var s = init.charAt(0) === "?" ? init.slice(1) : init;
+      if (s.length) s.split("&").forEach(function (pair) {
+        if (pair === "") return;
+        var idx = pair.indexOf("=");
+        var k = idx === -1 ? pair : pair.slice(0, idx);
+        var v = idx === -1 ? "" : pair.slice(idx + 1);
+        self.__l.push([decodeURIComponent(k.replace(/\+/g, " ")), decodeURIComponent(v.replace(/\+/g, " "))]);
+      });
+    } else if (init instanceof Array) {
+      init.forEach(function (p) { self.__l.push([String(p[0]), String(p[1])]); });
+    } else if (typeof init.forEach === "function") {
+      init.forEach(function (v, k) { self.__l.push([String(k), String(v)]); });
+    } else if (typeof init === "object") {
+      for (var key in init) if (Object.prototype.hasOwnProperty.call(init, key)) self.__l.push([key, String(init[key])]);
+    }
+  }
+  URLSearchParams.prototype.append = function (k, v) { this.__l.push([String(k), String(v)]); };
+  URLSearchParams.prototype["delete"] = function (k) { k = String(k); this.__l = this.__l.filter(function (e) { return e[0] !== k; }); };
+  URLSearchParams.prototype.get = function (k) { k = String(k); for (var i = 0; i < this.__l.length; i++) if (this.__l[i][0] === k) return this.__l[i][1]; return null; };
+  URLSearchParams.prototype.getAll = function (k) { k = String(k); var r = []; for (var i = 0; i < this.__l.length; i++) if (this.__l[i][0] === k) r.push(this.__l[i][1]); return r; };
+  URLSearchParams.prototype.has = function (k) { return this.get(String(k)) !== null; };
+  URLSearchParams.prototype.set = function (k, v) {
+    k = String(k); v = String(v); var found = false; var out = [];
+    for (var i = 0; i < this.__l.length; i++) {
+      if (this.__l[i][0] === k) { if (!found) { out.push([k, v]); found = true; } }
+      else out.push(this.__l[i]);
+    }
+    if (!found) out.push([k, v]); this.__l = out;
+  };
+  URLSearchParams.prototype.forEach = function (cb, t) { for (var i = 0; i < this.__l.length; i++) cb.call(t, this.__l[i][1], this.__l[i][0], this); };
+  URLSearchParams.prototype.keys = function () { return this.__l.map(function (e) { return e[0]; }); };
+  URLSearchParams.prototype.values = function () { return this.__l.map(function (e) { return e[1]; }); };
+  URLSearchParams.prototype.entries = function () { return this.__l.map(function (e) { return [e[0], e[1]]; }); };
+  URLSearchParams.prototype.sort = function () { this.__l.sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; }); };
+  URLSearchParams.prototype.toString = function () { return this.__l.map(function (e) { return encodeURIComponent(e[0]) + "=" + encodeURIComponent(e[1]); }).join("&"); };
+
+  // ---- URL ----
+  var URL_RE = /^(?:([^:/?#]+):)?(?:\/\/(?:([^/?#@]*)@)?([^/?#:]*)(?::(\d+))?)?([^?#]*)(?:\?([^#]*))?(?:#(.*))?$/;
+  function URL(url, base) {
+    url = String(url);
+    if (base != null && !/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(url)) {
+      var b = new URL(String(base));
+      if (url.indexOf("//") === 0) url = b.protocol + url;
+      else if (url.charAt(0) === "/") url = b.protocol + "//" + b.host + url;
+      else if (url.charAt(0) === "?") url = b.protocol + "//" + b.host + b.pathname + url;
+      else if (url.charAt(0) === "#") url = b.protocol + "//" + b.host + b.pathname + b.search + url;
+      else url = b.protocol + "//" + b.host + b.pathname.replace(/[^/]*$/, "") + url;
+    }
+    var m = url.match(URL_RE);
+    if (!m || !m[1]) throw new TypeError("Invalid URL: " + url);
+    this.protocol = m[1].toLowerCase() + ":";
+    var auth = m[2] || "", ai = auth.indexOf(":");
+    this.username = ai === -1 ? auth : auth.slice(0, ai);
+    this.password = ai === -1 ? "" : auth.slice(ai + 1);
+    this.hostname = (m[3] || "").toLowerCase();
+    this.port = m[4] || "";
+    this.host = this.hostname + (this.port ? ":" + this.port : "");
+    this.pathname = m[5] || (this.hostname ? "/" : "");
+    this.search = (m[6] != null && m[6] !== "") ? "?" + m[6] : "";
+    this.hash = (m[7] != null && m[7] !== "") ? "#" + m[7] : "";
+    this.searchParams = new URLSearchParams(this.search);
+    var sp = this.protocol;
+    var special = sp === "http:" || sp === "https:" || sp === "ftp:" || sp === "ws:" || sp === "wss:";
+    this.origin = (special && this.hostname) ? (this.protocol + "//" + this.host) : "null";
+  }
+  Object.defineProperty(URL.prototype, "href", {
+    get: function () {
+      var auth = this.username ? (this.username + (this.password ? ":" + this.password : "") + "@") : "";
+      var search = this.searchParams && this.searchParams.toString ? this.searchParams.toString() : "";
+      search = search ? "?" + search : "";
+      var hostPart = this.host ? ("//" + auth + this.host) : (this.protocol === "file:" ? "//" : "");
+      return this.protocol + hostPart + this.pathname + search + this.hash;
+    },
+    set: function (v) { URL.call(this, v); }
+  });
+  URL.prototype.toString = function () { return this.href; };
+  URL.prototype.toJSON = function () { return this.href; };
+
+  // ---- TextEncoder / TextDecoder (UTF-8) ----
+  function TextEncoder() {}
+  TextEncoder.prototype.encode = function (str) {
+    str = String(str === undefined ? "" : str);
+    var out = [];
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      if (c < 0x80) out.push(c);
+      else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f));
+      else if (c >= 0xd800 && c <= 0xdbff && i + 1 < str.length) {
+        var c2 = str.charCodeAt(i + 1);
+        if (c2 >= 0xdc00 && c2 <= 0xdfff) {
+          var cp = 0x10000 + ((c - 0xd800) << 10) + (c2 - 0xdc00);
+          out.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 0x3f), 0x80 | ((cp >> 6) & 0x3f), 0x80 | (cp & 0x3f));
+          i++;
+        } else out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+      } else out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+    }
+    return new Uint8Array(out);
+  };
+  function TextDecoder() {}
+  TextDecoder.prototype.decode = function (buf) {
+    if (!buf) return "";
+    var bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf.buffer || buf);
+    var out = "", i = 0;
+    while (i < bytes.length) {
+      var b = bytes[i++];
+      if (b < 0x80) out += String.fromCharCode(b);
+      else if (b >= 0xc0 && b < 0xe0) out += String.fromCharCode(((b & 0x1f) << 6) | (bytes[i++] & 0x3f));
+      else if (b >= 0xe0 && b < 0xf0) out += String.fromCharCode(((b & 0x0f) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f));
+      else {
+        var cp2 = ((b & 0x07) << 18) | ((bytes[i++] & 0x3f) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f);
+        cp2 -= 0x10000;
+        out += String.fromCharCode(0xd800 + (cp2 >> 10), 0xdc00 + (cp2 & 0x3ff));
+      }
+    }
+    return out;
+  };
+
+  // ---- structuredClone ----
+  function structuredClone(value) {
+    function cl(x, seen) {
+      if (x === null || typeof x !== "object") return x;
+      if (seen.has(x)) return seen.get(x);
+      if (x instanceof Date) return new Date(x.getTime());
+      if (x instanceof RegExp) return new RegExp(x.source, x.flags);
+      var out;
+      if (Array.isArray(x)) { out = []; seen.set(x, out); for (var i = 0; i < x.length; i++) out[i] = cl(x[i], seen); return out; }
+      if (x instanceof Map) { out = new Map(); seen.set(x, out); x.forEach(function (v, k) { out.set(cl(k, seen), cl(v, seen)); }); return out; }
+      if (x instanceof Set) { out = new Set(); seen.set(x, out); x.forEach(function (v) { out.add(cl(v, seen)); }); return out; }
+      out = {}; seen.set(x, out);
+      for (var key in x) if (Object.prototype.hasOwnProperty.call(x, key)) out[key] = cl(x[key], seen);
+      return out;
+    }
+    return cl(value, new Map());
+  }
+
+  // ---- crypto (NOT cryptographically secure — Math.random based) ----
+  var crypto = {
+    getRandomValues: function (arr) {
+      var max = arr && arr.BYTES_PER_ELEMENT ? Math.pow(256, arr.BYTES_PER_ELEMENT) : 256;
+      for (var i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * max);
+      return arr;
+    },
+    randomUUID: function () {
+      var s = "";
+      for (var i = 0; i < 36; i++) {
+        if (i === 8 || i === 13 || i === 18 || i === 23) s += "-";
+        else if (i === 14) s += "4";
+        else if (i === 19) s += (8 + Math.floor(Math.random() * 4)).toString(16);
+        else s += Math.floor(Math.random() * 16).toString(16);
+      }
+      return s;
+    }
+  };
+
+  g.URLSearchParams = URLSearchParams;
+  g.URL = URL;
+  g.TextEncoder = TextEncoder;
+  g.TextDecoder = TextDecoder;
+  g.structuredClone = structuredClone;
+  g.crypto = crypto;
+})(typeof globalThis !== "undefined" ? globalThis : this);
+`;
+
 /**
  * Verify a rule's code string parses WITHOUT executing it. Constructing
  * `new Function(body)` compiles/parses the body but never runs it (the function
@@ -142,6 +321,7 @@ export async function executeUserFunction(
     // swallow the marshaling code. Result (or error) + console + $sharedState are
     // serialized into the __OUTPUT global, which we read back on the host side.
     const program =
+      SANDBOX_POLYFILLS +
       SANDBOX_SETUP +
       "Promise.resolve((" +
       functionString +
