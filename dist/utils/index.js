@@ -278,10 +278,7 @@ async function executeUserFunction(ctx, functionString, args) {
         // The user fn is appended after a newline so a trailing '//' comment can't
         // swallow the marshaling code. Result (or error) + console + $sharedState are
         // serialized into the __OUTPUT global, which we read back on the host side.
-        const program = sandbox_globals_1.SANDBOX_POLYFILLS +
-            sandbox_globals_1.SANDBOX_BRIDGE_SHIMS +
-            sandbox_globals_1.SANDBOX_EXTRA_SHIMS +
-            sandbox_globals_1.SANDBOX_SETUP +
+        const program = sandbox_globals_1.SANDBOX_PRELUDE +
             "Promise.resolve((" +
             functionString +
             "\n)(args)).then(function (r) {" +

@@ -11,12 +11,7 @@ import {
 } from "quickjs-emscripten-core";
 import { randomUUID, randomBytes, createHash, createHmac } from "crypto";
 import GlobalStateProvider from "../components/proxy-middleware/middlewares/state";
-import {
-  SANDBOX_SETUP,
-  SANDBOX_POLYFILLS,
-  SANDBOX_BRIDGE_SHIMS,
-  SANDBOX_EXTRA_SHIMS,
-} from "./sandbox-globals";
+import { SANDBOX_PRELUDE } from "./sandbox-globals";
 
 /**
  * RQ-2426: rule-supplied "code" rules (Modify Request/Response) used to be run
@@ -310,10 +305,7 @@ export async function executeUserFunction(
     // swallow the marshaling code. Result (or error) + console + $sharedState are
     // serialized into the __OUTPUT global, which we read back on the host side.
     const program =
-      SANDBOX_POLYFILLS +
-      SANDBOX_BRIDGE_SHIMS +
-      SANDBOX_EXTRA_SHIMS +
-      SANDBOX_SETUP +
+      SANDBOX_PRELUDE +
       "Promise.resolve((" +
       functionString +
       "\n)(args)).then(function (r) {" +
