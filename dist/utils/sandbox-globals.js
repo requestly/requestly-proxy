@@ -325,10 +325,15 @@ exports.SANDBOX_EXTRA_SHIMS = String.raw `
   Buffer.concat = function(list){ var all=[]; for(var i=0;i<list.length;i++){ for(var j=0;j<list[i].length;j++) all.push(list[i][j]); } return _mkBuf(all); };
   g.Buffer = Buffer;
 
-  // ---- timers + microtask (request-scoped: setTimeout fires once via microtask, ignoring delay; setInterval is a no-op) ----
+  // ---- timers + microtask ----
+  // setTimeout honors the real delay via the host timer bridge (__hostTimer),
+  // clamped host-side to the execution's wall-clock budget — so backoff/retry code
+  // actually waits. clearTimeout cancels the pending callback. setInterval is a
+  // no-op (returns an id): a repeating timer can't meaningfully outlive a
+  // per-request execution. queueMicrotask defers to the microtask queue.
   var _cancelled = {}, _tid = 0;
   g.setTimeout = function(fn, ms){ var id=++_tid; var args=Array.prototype.slice.call(arguments,2);
-    Promise.resolve().then(function(){ if(!_cancelled[id] && typeof fn==="function") fn.apply(null,args); }); return id; };
+    __hostTimer(Number(ms)||0).then(function(){ if(!_cancelled[id] && typeof fn==="function") fn.apply(null,args); }); return id; };
   g.clearTimeout = function(id){ _cancelled[id]=true; };
   g.setInterval = function(){ return ++_tid; };
   g.clearInterval = function(){};

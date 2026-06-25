@@ -204,9 +204,12 @@ async function executeUserFunction(ctx, functionString, args) {
         const sharedHandle = vm.newString(sharedStateJson);
         vm.setProp(vm.global, "__sharedStateJson", sharedHandle);
         sharedHandle.dispose();
-        // In-flight async host calls (fetch) the pump loop must await before the
-        // guest's await-chain can progress.
+        // In-flight async host calls (fetch, timers) the pump loop must await before
+        // the guest's await-chain can progress.
         const inflight = [];
+        // Wall-clock cap for the whole execution (incl. async host I/O + timer waits).
+        // Declared here so the timer bridge can clamp delays to the remaining budget.
+        const overallDeadline = Date.now() + OVERALL_TIMEOUT_MS;
         // crypto bridge — SYNC: a JSON string in, a JSON string out.
         const cryptoFn = vm.newFunction("__hostCrypto", (reqHandle) => {
             let out;
@@ -247,6 +250,31 @@ async function executeUserFunction(ctx, functionString, args) {
         });
         vm.setProp(vm.global, "__hostFetch", fetchFn);
         fetchFn.dispose();
+        // timer bridge — ASYNC via guest promise: honors the real `ms` delay using a
+        // host timer, so setTimeout-based backoff/retry actually waits (not a no-delay
+        // microtask). Clamped to the remaining wall-clock budget so a timer can never
+        // outlast the execution; the pump loop awaits it like any in-flight host call.
+        const timerFn = vm.newFunction("__hostTimer", (msHandle) => {
+            let ms = Number(vm.dump(msHandle));
+            if (!Number.isFinite(ms) || ms < 0)
+                ms = 0;
+            ms = Math.min(ms, Math.max(0, overallDeadline - Date.now()));
+            const deferred = vm.newPromise();
+            inflight.push(new Promise((resolve) => {
+                setTimeout(() => {
+                    try {
+                        deferred.resolve(vm.undefined);
+                    }
+                    catch (_a) {
+                        /* context disposed (overall timeout) — drop it */
+                    }
+                    resolve();
+                }, ms);
+            }));
+            return deferred.handle;
+        });
+        vm.setProp(vm.global, "__hostTimer", timerFn);
+        timerFn.dispose();
         // The user fn is appended after a newline so a trailing '//' comment can't
         // swallow the marshaling code. Result (or error) + console + $sharedState are
         // serialized into the __OUTPUT global, which we read back on the host side.
@@ -278,7 +306,6 @@ async function executeUserFunction(ctx, functionString, args) {
         // network wait doesn't make a post-fetch sync burst trip the original
         // deadline; the overall wall-clock cap bounds total time. Repeat until the
         // top-level promise sets __OUTPUT, the deadline trips, or nothing is pending.
-        const overallDeadline = Date.now() + OVERALL_TIMEOUT_MS;
         let output;
         for (;;) {
             vm.runtime.setInterruptHandler((0, quickjs_emscripten_core_1.shouldInterruptAfterDeadline)(Date.now() + EXEC_TIMEOUT_MS));
