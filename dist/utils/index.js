@@ -6,8 +6,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.isValidFunctionString = void 0;
 exports.executeUserFunction = executeUserFunction;
 const quickjs_singlefile_cjs_release_sync_1 = __importDefault(require("@jitl/quickjs-singlefile-cjs-release-sync"));
-const quickjs_emscripten_1 = require("quickjs-emscripten");
+// Import from quickjs-emscripten-core (lean, bring-your-own-variant) rather than
+// the umbrella `quickjs-emscripten`: the umbrella's auto-loader statically
+// references every WASM variant package, which a bundler (the desktop's webpack)
+// tries to resolve and fails on. core + our single embedded variant is
+// bundler-safe. (Same dependency choice as @requestly/sandbox-node.)
+const quickjs_emscripten_core_1 = require("quickjs-emscripten-core");
+const crypto_1 = require("crypto");
 const state_1 = __importDefault(require("../components/proxy-middleware/middlewares/state"));
+const sandbox_globals_1 = require("./sandbox-globals");
 /**
  * RQ-2426: rule-supplied "code" rules (Modify Request/Response) used to be run
  * with `new Function(...)` directly in the proxy's Node.js process — full access
@@ -32,11 +39,22 @@ const state_1 = __importDefault(require("../components/proxy-middleware/middlewa
  * Contract is unchanged: `userFn(args)` returns a string (objects are
  * JSON-stringified), promises are awaited, console output is captured into
  * `ctx.rq.consoleLogs` as `{type, args}`, and `$sharedState` is read and written
- * back. Intentional parity gaps vs the old full-host env: no `fetch`/`Buffer`/
- * timers/`TextEncoder`/`URL`. (`fetch` would need the asyncify QuickJS variant +
- * an async host bridge — a follow-up; QuickJS can do it safely, unlike worker+vm.)
+ * back.
+ *
+ * Web-API compatibility (so existing rule scripts don't break): `URL`,
+ * `URLSearchParams`, `TextEncoder`/`TextDecoder`, `structuredClone`, `atob`/`btoa`
+ * are pure in-guest JS shims (no host contact). `crypto` and `fetch` are HOST
+ * BRIDGES — the guest calls a host function that does the real work with COPIED
+ * data and returns copied data; no host object ever crosses the boundary, so the
+ * isolation guarantee is unchanged (see __hostCrypto/__hostFetch below). `fetch`
+ * uses the guest-promise + pump-loop pattern (works on the sync QuickJS variant;
+ * avoids the asyncify teardown race). `require('crypto')` maps to the same bridge;
+ * any other `require(...)` throws a guided error (fs/process/etc. stay absent).
  */
-const EXEC_TIMEOUT_MS = 5000;
+const EXEC_TIMEOUT_MS = 5000; // per-step CPU/interrupt deadline (sync guest bursts)
+const OVERALL_TIMEOUT_MS = 15000; // wall-clock cap incl. async host I/O (fetch)
+const FETCH_TIMEOUT_MS = 10000; // per fetch() call
+const MAX_FETCH_BODY_BYTES = 25 * 1024 * 1024;
 const MEMORY_LIMIT_BYTES = 128 * 1024 * 1024;
 const MAX_STACK_BYTES = 2 * 1024 * 1024;
 // The WASM module is expensive to instantiate; build it once and reuse across
@@ -44,217 +62,10 @@ const MAX_STACK_BYTES = 2 * 1024 * 1024;
 let modulePromise = null;
 function getQuickJSModule() {
     if (!modulePromise) {
-        modulePromise = (0, quickjs_emscripten_1.newQuickJSWASMModuleFromVariant)(quickjs_singlefile_cjs_release_sync_1.default);
+        modulePromise = (0, quickjs_emscripten_core_1.newQuickJSWASMModuleFromVariant)(quickjs_singlefile_cjs_release_sync_1.default);
     }
     return modulePromise;
 }
-// Code that runs INSIDE the QuickJS sandbox to set up the rule environment.
-// Built from primitives only (args/$sharedState arrive as JSON strings). console
-// captures into __logs; atob/btoa are pure-JS (the sandbox has no Buffer).
-// Statements are ';'-separated (no '//' comments) so it concatenates safely.
-const SANDBOX_SETUP = [
-    "var __logs = [];",
-    'var __B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";',
-    "function btoa(s){ s = String(s); var o = '', i = 0;",
-    "  while (i < s.length) {",
-    "    var r1 = s.charCodeAt(i++), r2 = s.charCodeAt(i++), r3 = s.charCodeAt(i++);",
-    "    var h2 = !isNaN(r2), h3 = !isNaN(r3);",
-    "    var a = r1 & 0xff, b = h2 ? r2 & 0xff : 0, c = h3 ? r3 & 0xff : 0;",
-    "    o += __B64.charAt(a >> 2) + __B64.charAt(((a & 3) << 4) | (b >> 4)) + (h2 ? __B64.charAt(((b & 15) << 2) | (c >> 6)) : '=') + (h3 ? __B64.charAt(c & 63) : '=');",
-    "  } return o; }",
-    "function atob(s){ s = String(s).replace(/[^A-Za-z0-9+/]/g, ''); var o = '', i = 0;",
-    "  while (i < s.length) {",
-    "    var c1 = s.charAt(i++), c2 = s.charAt(i++), c3 = s.charAt(i++), c4 = s.charAt(i++);",
-    "    var e1 = __B64.indexOf(c1), e2 = __B64.indexOf(c2), e3 = c3 === '' ? -1 : __B64.indexOf(c3), e4 = c4 === '' ? -1 : __B64.indexOf(c4);",
-    "    o += String.fromCharCode((e1 << 2) | (e2 >> 4));",
-    "    if (e3 !== -1) o += String.fromCharCode(((e2 & 15) << 4) | (e3 >> 2));",
-    "    if (e4 !== -1) o += String.fromCharCode(((e3 & 3) << 6) | e4);",
-    "  } return o; }",
-    "function __safe(x){ try { JSON.stringify(x); return x; } catch (e) { return String(x); } }",
-    "function __emit(t, a){ try { __logs.push({ type: t, args: Array.prototype.map.call(a, __safe) }); } catch (e) {} }",
-    "var console = { log: function(){ __emit('log', arguments); }, info: function(){ __emit('info', arguments); }, warn: function(){ __emit('warn', arguments); }, error: function(){ __emit('error', arguments); }, debug: function(){ __emit('debug', arguments); } };",
-    "var args = JSON.parse(__argsJson);",
-    "var $sharedState = JSON.parse(__sharedStateJson);",
-    "var __OUTPUT = null;",
-].join("");
-// Pure-JS polyfills for common Web/Node globals that QuickJS (a bare ECMAScript
-// engine) does not provide. All implemented INSIDE the sandbox using only QuickJS
-// built-ins — no host object crosses the boundary, so they add no escape surface
-// (same safety model as atob/btoa). `String.raw` keeps regex backslashes literal.
-// NOTE: `crypto` here is NOT cryptographically secure (Math.random-based) — it is
-// only for id/random generation; secure RNG / crypto.subtle would need a host bridge.
-const SANDBOX_POLYFILLS = String.raw `
-(function (g) {
-  "use strict";
-
-  // ---- URLSearchParams ----
-  function URLSearchParams(init) {
-    this.__l = [];
-    var self = this;
-    if (init == null || init === "") { /* empty */ }
-    else if (typeof init === "string") {
-      var s = init.charAt(0) === "?" ? init.slice(1) : init;
-      if (s.length) s.split("&").forEach(function (pair) {
-        if (pair === "") return;
-        var idx = pair.indexOf("=");
-        var k = idx === -1 ? pair : pair.slice(0, idx);
-        var v = idx === -1 ? "" : pair.slice(idx + 1);
-        self.__l.push([decodeURIComponent(k.replace(/\+/g, " ")), decodeURIComponent(v.replace(/\+/g, " "))]);
-      });
-    } else if (init instanceof Array) {
-      init.forEach(function (p) { self.__l.push([String(p[0]), String(p[1])]); });
-    } else if (typeof init.forEach === "function") {
-      init.forEach(function (v, k) { self.__l.push([String(k), String(v)]); });
-    } else if (typeof init === "object") {
-      for (var key in init) if (Object.prototype.hasOwnProperty.call(init, key)) self.__l.push([key, String(init[key])]);
-    }
-  }
-  URLSearchParams.prototype.append = function (k, v) { this.__l.push([String(k), String(v)]); };
-  URLSearchParams.prototype["delete"] = function (k) { k = String(k); this.__l = this.__l.filter(function (e) { return e[0] !== k; }); };
-  URLSearchParams.prototype.get = function (k) { k = String(k); for (var i = 0; i < this.__l.length; i++) if (this.__l[i][0] === k) return this.__l[i][1]; return null; };
-  URLSearchParams.prototype.getAll = function (k) { k = String(k); var r = []; for (var i = 0; i < this.__l.length; i++) if (this.__l[i][0] === k) r.push(this.__l[i][1]); return r; };
-  URLSearchParams.prototype.has = function (k) { return this.get(String(k)) !== null; };
-  URLSearchParams.prototype.set = function (k, v) {
-    k = String(k); v = String(v); var found = false; var out = [];
-    for (var i = 0; i < this.__l.length; i++) {
-      if (this.__l[i][0] === k) { if (!found) { out.push([k, v]); found = true; } }
-      else out.push(this.__l[i]);
-    }
-    if (!found) out.push([k, v]); this.__l = out;
-  };
-  URLSearchParams.prototype.forEach = function (cb, t) { for (var i = 0; i < this.__l.length; i++) cb.call(t, this.__l[i][1], this.__l[i][0], this); };
-  URLSearchParams.prototype.keys = function () { return this.__l.map(function (e) { return e[0]; }); };
-  URLSearchParams.prototype.values = function () { return this.__l.map(function (e) { return e[1]; }); };
-  URLSearchParams.prototype.entries = function () { return this.__l.map(function (e) { return [e[0], e[1]]; }); };
-  URLSearchParams.prototype.sort = function () { this.__l.sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; }); };
-  URLSearchParams.prototype.toString = function () { return this.__l.map(function (e) { return encodeURIComponent(e[0]) + "=" + encodeURIComponent(e[1]); }).join("&"); };
-
-  // ---- URL ----
-  var URL_RE = /^(?:([^:/?#]+):)?(?:\/\/(?:([^/?#@]*)@)?([^/?#:]*)(?::(\d+))?)?([^?#]*)(?:\?([^#]*))?(?:#(.*))?$/;
-  function URL(url, base) {
-    url = String(url);
-    if (base != null && !/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(url)) {
-      var b = new URL(String(base));
-      if (url.indexOf("//") === 0) url = b.protocol + url;
-      else if (url.charAt(0) === "/") url = b.protocol + "//" + b.host + url;
-      else if (url.charAt(0) === "?") url = b.protocol + "//" + b.host + b.pathname + url;
-      else if (url.charAt(0) === "#") url = b.protocol + "//" + b.host + b.pathname + b.search + url;
-      else url = b.protocol + "//" + b.host + b.pathname.replace(/[^/]*$/, "") + url;
-    }
-    var m = url.match(URL_RE);
-    if (!m || !m[1]) throw new TypeError("Invalid URL: " + url);
-    this.protocol = m[1].toLowerCase() + ":";
-    var auth = m[2] || "", ai = auth.indexOf(":");
-    this.username = ai === -1 ? auth : auth.slice(0, ai);
-    this.password = ai === -1 ? "" : auth.slice(ai + 1);
-    this.hostname = (m[3] || "").toLowerCase();
-    this.port = m[4] || "";
-    this.host = this.hostname + (this.port ? ":" + this.port : "");
-    this.pathname = m[5] || (this.hostname ? "/" : "");
-    this.search = (m[6] != null && m[6] !== "") ? "?" + m[6] : "";
-    this.hash = (m[7] != null && m[7] !== "") ? "#" + m[7] : "";
-    this.searchParams = new URLSearchParams(this.search);
-    var sp = this.protocol;
-    var special = sp === "http:" || sp === "https:" || sp === "ftp:" || sp === "ws:" || sp === "wss:";
-    this.origin = (special && this.hostname) ? (this.protocol + "//" + this.host) : "null";
-  }
-  Object.defineProperty(URL.prototype, "href", {
-    get: function () {
-      var auth = this.username ? (this.username + (this.password ? ":" + this.password : "") + "@") : "";
-      var search = this.searchParams && this.searchParams.toString ? this.searchParams.toString() : "";
-      search = search ? "?" + search : "";
-      var hostPart = this.host ? ("//" + auth + this.host) : (this.protocol === "file:" ? "//" : "");
-      return this.protocol + hostPart + this.pathname + search + this.hash;
-    },
-    set: function (v) { URL.call(this, v); }
-  });
-  URL.prototype.toString = function () { return this.href; };
-  URL.prototype.toJSON = function () { return this.href; };
-
-  // ---- TextEncoder / TextDecoder (UTF-8) ----
-  function TextEncoder() {}
-  TextEncoder.prototype.encode = function (str) {
-    str = String(str === undefined ? "" : str);
-    var out = [];
-    for (var i = 0; i < str.length; i++) {
-      var c = str.charCodeAt(i);
-      if (c < 0x80) out.push(c);
-      else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f));
-      else if (c >= 0xd800 && c <= 0xdbff && i + 1 < str.length) {
-        var c2 = str.charCodeAt(i + 1);
-        if (c2 >= 0xdc00 && c2 <= 0xdfff) {
-          var cp = 0x10000 + ((c - 0xd800) << 10) + (c2 - 0xdc00);
-          out.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 0x3f), 0x80 | ((cp >> 6) & 0x3f), 0x80 | (cp & 0x3f));
-          i++;
-        } else out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
-      } else out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
-    }
-    return new Uint8Array(out);
-  };
-  function TextDecoder() {}
-  TextDecoder.prototype.decode = function (buf) {
-    if (!buf) return "";
-    var bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf.buffer || buf);
-    var out = "", i = 0;
-    while (i < bytes.length) {
-      var b = bytes[i++];
-      if (b < 0x80) out += String.fromCharCode(b);
-      else if (b >= 0xc0 && b < 0xe0) out += String.fromCharCode(((b & 0x1f) << 6) | (bytes[i++] & 0x3f));
-      else if (b >= 0xe0 && b < 0xf0) out += String.fromCharCode(((b & 0x0f) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f));
-      else {
-        var cp2 = ((b & 0x07) << 18) | ((bytes[i++] & 0x3f) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f);
-        cp2 -= 0x10000;
-        out += String.fromCharCode(0xd800 + (cp2 >> 10), 0xdc00 + (cp2 & 0x3ff));
-      }
-    }
-    return out;
-  };
-
-  // ---- structuredClone ----
-  function structuredClone(value) {
-    function cl(x, seen) {
-      if (x === null || typeof x !== "object") return x;
-      if (seen.has(x)) return seen.get(x);
-      if (x instanceof Date) return new Date(x.getTime());
-      if (x instanceof RegExp) return new RegExp(x.source, x.flags);
-      var out;
-      if (Array.isArray(x)) { out = []; seen.set(x, out); for (var i = 0; i < x.length; i++) out[i] = cl(x[i], seen); return out; }
-      if (x instanceof Map) { out = new Map(); seen.set(x, out); x.forEach(function (v, k) { out.set(cl(k, seen), cl(v, seen)); }); return out; }
-      if (x instanceof Set) { out = new Set(); seen.set(x, out); x.forEach(function (v) { out.add(cl(v, seen)); }); return out; }
-      out = {}; seen.set(x, out);
-      for (var key in x) if (Object.prototype.hasOwnProperty.call(x, key)) out[key] = cl(x[key], seen);
-      return out;
-    }
-    return cl(value, new Map());
-  }
-
-  // ---- crypto (NOT cryptographically secure — Math.random based) ----
-  var crypto = {
-    getRandomValues: function (arr) {
-      var max = arr && arr.BYTES_PER_ELEMENT ? Math.pow(256, arr.BYTES_PER_ELEMENT) : 256;
-      for (var i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * max);
-      return arr;
-    },
-    randomUUID: function () {
-      var s = "";
-      for (var i = 0; i < 36; i++) {
-        if (i === 8 || i === 13 || i === 18 || i === 23) s += "-";
-        else if (i === 14) s += "4";
-        else if (i === 19) s += (8 + Math.floor(Math.random() * 4)).toString(16);
-        else s += Math.floor(Math.random() * 16).toString(16);
-      }
-      return s;
-    }
-  };
-
-  g.URLSearchParams = URLSearchParams;
-  g.URL = URL;
-  g.TextEncoder = TextEncoder;
-  g.TextDecoder = TextDecoder;
-  g.structuredClone = structuredClone;
-  g.crypto = crypto;
-})(typeof globalThis !== "undefined" ? globalThis : this);
-`;
 /**
  * Verify a rule's code string parses WITHOUT executing it. Constructing
  * `new Function(body)` compiles/parses the body but never runs it (the function
@@ -273,6 +84,90 @@ const isValidFunctionString = async function (functionStringEscaped) {
     }
 };
 exports.isValidFunctionString = isValidFunctionString;
+// ── host-side bridge handlers ── only copied data crosses the boundary.
+/** Real crypto via the host's node:crypto. Input/output are plain JSON values. */
+function hostCryptoOp(req) {
+    switch (req === null || req === void 0 ? void 0 : req.op) {
+        case "randomUUID":
+            return { uuid: (0, crypto_1.randomUUID)() };
+        case "randomBytes": {
+            const n = Math.max(0, Math.min(65536, Number(req.size) | 0));
+            return { bytes: Array.from((0, crypto_1.randomBytes)(n)) };
+        }
+        case "hash": {
+            const enc = req.encoding === "base64" ? "base64" : "hex";
+            const data = Buffer.from(String(req.data), req.dataEncoding === "base64" ? "base64" : "utf8");
+            return {
+                digest: (0, crypto_1.createHash)(String(req.algo || "sha256"))
+                    .update(data)
+                    .digest(enc),
+            };
+        }
+        case "hmac": {
+            const enc = req.encoding === "base64" ? "base64" : "hex";
+            const key = Buffer.from(String(req.key), req.keyEncoding === "base64" ? "base64" : "utf8");
+            const data = Buffer.from(String(req.data), req.dataEncoding === "base64" ? "base64" : "utf8");
+            return {
+                digest: (0, crypto_1.createHmac)(String(req.algo || "sha256"), key)
+                    .update(data)
+                    .digest(enc),
+            };
+        }
+        default:
+            throw new Error("unsupported crypto op");
+    }
+}
+/**
+ * Real HTTP via the host's global fetch, bounded by a timeout + body-size cap.
+ * Policy: http(s) URLs only (no file:/ftp:/data: etc.), and `credentials: 'omit'`
+ * so a (potentially shared) rule cannot ride the user's ambient cookies/sessions.
+ */
+async function hostFetchOp(req) {
+    const hostFetch = globalThis.fetch;
+    if (typeof hostFetch !== "function") {
+        throw new Error("fetch is not available in this environment");
+    }
+    let parsedUrl;
+    try {
+        parsedUrl = new URL(String(req.url));
+    }
+    catch (_a) {
+        throw new Error("Invalid URL");
+    }
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        throw new Error("Only http and https URLs are allowed in sandboxed rules");
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+        const resp = await hostFetch(parsedUrl.toString(), {
+            method: req.method || "GET",
+            headers: req.headers || {},
+            body: req.body,
+            signal: controller.signal,
+            credentials: "omit",
+        });
+        const buf = await resp.arrayBuffer();
+        if (buf.byteLength > MAX_FETCH_BODY_BYTES) {
+            throw new Error("response body exceeds sandbox size limit");
+        }
+        const headers = {};
+        resp.headers.forEach((v, k) => {
+            headers[k] = v;
+        });
+        return {
+            status: resp.status,
+            statusText: resp.statusText,
+            ok: resp.ok,
+            url: resp.url,
+            headers,
+            body: Buffer.from(buf).toString("utf8"),
+        };
+    }
+    finally {
+        clearTimeout(timer);
+    }
+}
 /* Expects that `functionString` has already been validated via isValidFunctionString. */
 async function executeUserFunction(ctx, functionString, args) {
     var _a, _b, _c, _d, _e;
@@ -301,7 +196,7 @@ async function executeUserFunction(ctx, functionString, args) {
         vm.runtime.setMemoryLimit(MEMORY_LIMIT_BYTES);
         vm.runtime.setMaxStackSize(MAX_STACK_BYTES);
         // Hard wall-clock cap — interrupts infinite loops (sync and inside microtasks).
-        vm.runtime.setInterruptHandler((0, quickjs_emscripten_1.shouldInterruptAfterDeadline)(Date.now() + EXEC_TIMEOUT_MS));
+        vm.runtime.setInterruptHandler((0, quickjs_emscripten_core_1.shouldInterruptAfterDeadline)(Date.now() + EXEC_TIMEOUT_MS));
         // Inject inputs as primitive strings (parsed into objects inside the sandbox).
         const argsHandle = vm.newString(argsJson);
         vm.setProp(vm.global, "__argsJson", argsHandle);
@@ -309,11 +204,56 @@ async function executeUserFunction(ctx, functionString, args) {
         const sharedHandle = vm.newString(sharedStateJson);
         vm.setProp(vm.global, "__sharedStateJson", sharedHandle);
         sharedHandle.dispose();
+        // In-flight async host calls (fetch) the pump loop must await before the
+        // guest's await-chain can progress.
+        const inflight = [];
+        // crypto bridge — SYNC: a JSON string in, a JSON string out.
+        const cryptoFn = vm.newFunction("__hostCrypto", (reqHandle) => {
+            let out;
+            try {
+                out = JSON.stringify(hostCryptoOp(JSON.parse(vm.getString(reqHandle))));
+            }
+            catch (e) {
+                out = JSON.stringify({ error: String((e && e.message) || e) });
+            }
+            return vm.newString(out);
+        });
+        vm.setProp(vm.global, "__hostCrypto", cryptoFn);
+        cryptoFn.dispose();
+        // fetch bridge — ASYNC via guest promise: return a pending guest Promise now,
+        // resolve it with the copied response once the real host fetch settles. The
+        // resolve is guarded so a late settle after a timeout/dispose can't throw.
+        const fetchFn = vm.newFunction("__hostFetch", (reqHandle) => {
+            const req = JSON.parse(vm.getString(reqHandle));
+            const deferred = vm.newPromise();
+            inflight.push((async () => {
+                let payload;
+                try {
+                    payload = JSON.stringify(await hostFetchOp(req));
+                }
+                catch (e) {
+                    payload = JSON.stringify({ __fetchError: String((e && e.message) || e) });
+                }
+                try {
+                    const h = vm.newString(payload);
+                    deferred.resolve(h);
+                    h.dispose();
+                }
+                catch (_a) {
+                    /* context disposed (overall timeout) — drop the result */
+                }
+            })());
+            return deferred.handle;
+        });
+        vm.setProp(vm.global, "__hostFetch", fetchFn);
+        fetchFn.dispose();
         // The user fn is appended after a newline so a trailing '//' comment can't
         // swallow the marshaling code. Result (or error) + console + $sharedState are
         // serialized into the __OUTPUT global, which we read back on the host side.
-        const program = SANDBOX_POLYFILLS +
-            SANDBOX_SETUP +
+        const program = sandbox_globals_1.SANDBOX_POLYFILLS +
+            sandbox_globals_1.SANDBOX_BRIDGE_SHIMS +
+            sandbox_globals_1.SANDBOX_EXTRA_SHIMS +
+            sandbox_globals_1.SANDBOX_SETUP +
             "Promise.resolve((" +
             functionString +
             "\n)(args)).then(function (r) {" +
@@ -333,17 +273,37 @@ async function executeUserFunction(ctx, functionString, args) {
         }
         // Success variant — dispose the completion value (we read __OUTPUT instead).
         evalResult.value.dispose();
-        // Resolve the user fn's (possibly async-but-IO-free) promise microtasks.
-        // On a job error / deadline interrupt the result carries a QuickJSHandle;
-        // dispose it eagerly (vm.dispose() in finally would reclaim it too).
-        const jobs = vm.runtime.executePendingJobs();
-        if (jobs.error)
-            jobs.error.dispose();
-        const outHandle = vm.getProp(vm.global, "__OUTPUT");
-        const output = vm.dump(outHandle);
-        outHandle.dispose();
+        // Pump loop — drive the user fn's promise chain, including real async host
+        // I/O (fetch). Re-arm the per-step CPU interrupt each iteration so a slow
+        // network wait doesn't make a post-fetch sync burst trip the original
+        // deadline; the overall wall-clock cap bounds total time. Repeat until the
+        // top-level promise sets __OUTPUT, the deadline trips, or nothing is pending.
+        const overallDeadline = Date.now() + OVERALL_TIMEOUT_MS;
+        let output;
+        for (;;) {
+            vm.runtime.setInterruptHandler((0, quickjs_emscripten_core_1.shouldInterruptAfterDeadline)(Date.now() + EXEC_TIMEOUT_MS));
+            // On a job error / deadline interrupt the result carries a QuickJSHandle;
+            // dispose it eagerly (vm.dispose() in finally would reclaim it too).
+            const jobs = vm.runtime.executePendingJobs();
+            if (jobs.error)
+                jobs.error.dispose();
+            const outHandle = vm.getProp(vm.global, "__OUTPUT");
+            output = vm.dump(outHandle);
+            outHandle.dispose();
+            if (typeof output === "string")
+                break; // settled
+            if (Date.now() > overallDeadline)
+                break; // timed out
+            if (inflight.length === 0)
+                break; // nothing pending → chain won't progress
+            const batch = inflight.splice(0);
+            await Promise.race([
+                Promise.allSettled(batch),
+                new Promise((r) => setTimeout(r, Math.max(0, overallDeadline - Date.now()))),
+            ]);
+        }
         if (typeof output !== "string") {
-            // Promise never settled (e.g. unsupported real async) → no modification.
+            // Promise never settled (timeout / never-resolving await) → no modification.
             return undefined;
         }
         let parsed;
