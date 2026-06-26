@@ -158,11 +158,13 @@ class ProxyMiddlewareManager {
         if (modifyResponseActionExist) {
           const statusCode = ctx.rq_response_status_code || 404;
           const responseHeaders = getResponseHeaders(ctx) || {}
-          ctx.proxyToClientResponse.writeHead(
-              statusCode,
-              http.STATUS_CODES[statusCode],
-              responseHeaders
-            );
+          if (!ctx.proxyToClientResponse.headersSent) {
+            ctx.proxyToClientResponse.writeHead(
+                statusCode,
+                http.STATUS_CODES[statusCode],
+                responseHeaders
+              );
+          }
           ctx.proxyToClientResponse.end(ctx.rq_response_body);
 
           ctx.rq.set_final_response({
@@ -185,14 +187,16 @@ class ProxyMiddlewareManager {
           // Serve a clear SSL error instead of a misleading ERR_NAME_NOT_RESOLVED.
           if (isCertificateError(err)) {
             const { status, contentType, body, errorToken } = dataToServeCertErrorPage(host, err?.code);
-            ctx.proxyToClientResponse.writeHead(
-              status,
-              http.STATUS_CODES[status],
-              {
-                "Content-Type": contentType,
-                "x-rq-error": errorToken,
-              }
-            );
+            if (!ctx.proxyToClientResponse.headersSent) {
+              ctx.proxyToClientResponse.writeHead(
+                status,
+                http.STATUS_CODES[status],
+                {
+                  "Content-Type": contentType,
+                  "x-rq-error": errorToken,
+                }
+              );
+            }
             ctx.proxyToClientResponse.end(body);
             ctx.rq.set_final_response({
               status_code: status,
@@ -222,14 +226,16 @@ class ProxyMiddlewareManager {
             const isAddressUnreachable = await isAddressUnreachableError(hostname);
             if (isAddressUnreachable) {
               const { status, contentType, body } = dataToServeUnreachablePage(host);
-              ctx.proxyToClientResponse.writeHead(
-                status,
-                http.STATUS_CODES[status],
-                { 
-                  "Content-Type": contentType ,
-                  "x-rq-error": "ERR_NAME_NOT_RESOLVED"
-                }
-              );
+              if (!ctx.proxyToClientResponse.headersSent) {
+                ctx.proxyToClientResponse.writeHead(
+                  status,
+                  http.STATUS_CODES[status],
+                  {
+                    "Content-Type": contentType ,
+                    "x-rq-error": "ERR_NAME_NOT_RESOLVED"
+                  }
+                );
+              }
               ctx.proxyToClientResponse.end(body);
               ctx.rq.set_final_response({
                 status_code: status,
@@ -348,11 +354,15 @@ class ProxyMiddlewareManager {
           delete responseHeaders['Transfer-Encoding'];
         }
 
-        ctx.proxyToClientResponse.writeHead(
-          statusCode,
-          http.STATUS_CODES[statusCode],
-          responseHeaders,
-        );
+        // Node 24 commits headers on writeHead and throws on a second call;
+        // guard so a re-entrant write can't crash the response pipeline.
+        if (!ctx.proxyToClientResponse.headersSent) {
+          ctx.proxyToClientResponse.writeHead(
+            statusCode,
+            http.STATUS_CODES[statusCode],
+            responseHeaders,
+          );
+        }
 
         ctx.proxyToClientResponse.write(ctx.rq_response_body);
 

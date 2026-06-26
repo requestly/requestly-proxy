@@ -1080,10 +1080,22 @@ Proxy.prototype._onHttpServerRequest = function (
         if (err) {
           return self._onError("ON_RESPONSEHEADERS_ERROR", ctx, err);
         }
-        ctx.proxyToClientResponse.writeHead(
-          ctx.serverToProxyResponse.statusCode,
-          Proxy.filterAndCanonizeHeaders(ctx.serverToProxyResponse.headers)
-        );
+        // NOTE (RQ / Node 24 + Electron 42 compat): do NOT writeHead eagerly here.
+        // The Requestly response middleware buffers the whole body (onResponseData
+        // returns no chunk) and writes the FINAL response — status, rule-modified
+        // headers, and body — in its onResponseEnd handler. Sending headers here
+        // caused a double writeHead: harmless on Node 18 (the later call overrode),
+        // but Node 24 commits headers on the first writeHead and throws
+        // ERR_HTTP_HEADERS_SENT on the second, breaking interception. Eager headers
+        // were also wrong — they predate the rule modifications computed at response
+        // end. The guard keeps the generic streaming path working when no
+        // response-end handler will write.
+        if (!ctx.proxyToClientResponse.headersSent && !ctx.onResponseEndHandlers.length) {
+          ctx.proxyToClientResponse.writeHead(
+            ctx.serverToProxyResponse.statusCode,
+            Proxy.filterAndCanonizeHeaders(ctx.serverToProxyResponse.headers)
+          );
+        }
         ctx.responseFilters.push(new ProxyFinalResponseFilter(self, ctx));
         var prevResponsePipeElem = ctx.serverToProxyResponse;
         ctx.responseFilters.forEach(function (filter) {
