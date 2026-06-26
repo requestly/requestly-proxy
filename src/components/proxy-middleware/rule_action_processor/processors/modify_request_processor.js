@@ -69,10 +69,15 @@ const modify_request_using_code = async (action, ctx) => {
       return modify_request(ctx, finalRequest);
     } else throw new Error("Returned value is not a string");
   } catch (error) {
-    // Function parsed but failed to execute
+    // Function parsed but failed to execute. Code 188 = sandbox-internal (our shim
+    // broke); 187 = the rule author's code. error.message now carries the real
+    // sandbox error (previously swallowed).
+    const code = error && error.kind === "prelude" ? 188 : 187;
     return modify_request(
       ctx,
-      "Can't execute Requestly function. Please recheck. Error Code 187. Actual Error: " +
+      "Can't execute Requestly function. Please recheck. Error Code " +
+        code +
+        ". Actual Error: " +
         error.message
     );
   }

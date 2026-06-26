@@ -1,9 +1,32 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isValidFunctionString = void 0;
+exports.isValidFunctionString = exports.SandboxError = void 0;
 exports.executeUserFunction = executeUserFunction;
 const quickjs_singlefile_cjs_release_sync_1 = __importDefault(require("@jitl/quickjs-singlefile-cjs-release-sync"));
 // Import from quickjs-emscripten-core (lean, bring-your-own-variant) rather than
@@ -13,7 +36,50 @@ const quickjs_singlefile_cjs_release_sync_1 = __importDefault(require("@jitl/qui
 // bundler-safe. (Same dependency choice as @requestly/sandbox-node.)
 const quickjs_emscripten_core_1 = require("quickjs-emscripten-core");
 const crypto_1 = require("crypto");
+const Sentry = __importStar(require("@sentry/browser"));
 const state_1 = __importDefault(require("../components/proxy-middleware/middlewares/state"));
+class SandboxError extends Error {
+    constructor(message, kind) {
+        super(message);
+        this.name = "SandboxError";
+        this.kind = kind;
+    }
+}
+exports.SandboxError = SandboxError;
+/** Read a QuickJS error handle out as a host string (best-effort: name + message). */
+function dumpError(vm, handle) {
+    var _a;
+    try {
+        const d = vm.dump(handle);
+        if (d && typeof d === "object") {
+            return String((d.name ? d.name + ": " : "") + ((_a = d.message) !== null && _a !== void 0 ? _a : JSON.stringify(d)));
+        }
+        return String(d);
+    }
+    catch (_b) {
+        return "unknown sandbox error";
+    }
+}
+/**
+ * Host-side visibility for sandbox failures (previously these were swallowed).
+ * `prelude`/`timeout` are OUR problem → always report to Sentry; `user` is the
+ * rule author's → console only, to avoid telemetry noise. Sentry is wrapped
+ * because it may be uninitialised in this context (CLI/tests).
+ */
+function reportSandboxError(kind, message) {
+    // eslint-disable-next-line no-console
+    console.error("[rq-sandbox]", kind, message);
+    if (kind === "user")
+        return;
+    try {
+        Sentry.captureException(new Error("[rq-sandbox:" + kind + "] " + message), {
+            tags: { sandbox: kind },
+        });
+    }
+    catch (_a) {
+        /* Sentry not initialised — the console.error above is the fallback */
+    }
+}
 const sandbox_globals_1 = require("./sandbox-globals");
 /**
  * RQ-2426: rule-supplied "code" rules (Modify Request/Response) used to be run
@@ -278,10 +344,23 @@ async function executeUserFunction(ctx, functionString, args) {
         // The user fn is appended after a newline so a trailing '//' comment can't
         // swallow the marshaling code. Result (or error) + console + $sharedState are
         // serialized into the __OUTPUT global, which we read back on the host side.
-        const program = sandbox_globals_1.SANDBOX_PRELUDE +
-            "Promise.resolve((" +
+        // 1) Eval our prelude (shims) ON ITS OWN. An error here is OUR bug, not the
+        //    rule author's — dump + report it instead of swallowing it as a generic 187.
+        const preludeResult = vm.evalCode(sandbox_globals_1.SANDBOX_PRELUDE);
+        if (preludeResult.error) {
+            const msg = dumpError(vm, preludeResult.error);
+            preludeResult.error.dispose();
+            reportSandboxError("prelude", msg);
+            throw new SandboxError(msg, "prelude");
+        }
+        preludeResult.value.dispose();
+        // 2) Eval the user fn wrapper. Running the fn inside a `.then` turns a SYNC
+        //    throw into a rejection, so it is captured by `.catch` (→ __OUTPUT.error)
+        //    exactly like an async throw — instead of leaking out as a top-level eval
+        //    error that we'd lose.
+        const userProgram = "Promise.resolve().then(function () { return (" +
             functionString +
-            "\n)(args)).then(function (r) {" +
+            "\n)(args); }).then(function (r) {" +
             "  var out;" +
             "  if (r === undefined || r === null) { out = r; }" +
             '  else if (typeof r === "object") { out = JSON.stringify(r); }' +
@@ -290,14 +369,16 @@ async function executeUserFunction(ctx, functionString, args) {
             "}).catch(function (e) {" +
             "  __OUTPUT = JSON.stringify({ error: String((e && e.message) || e), logs: __logs });" +
             "});";
-        const evalResult = vm.evalCode(program);
-        if (evalResult.error) {
-            // Syntax/throw at the top level (outside the user fn's promise).
-            evalResult.error.dispose();
-            return undefined;
+        const userEval = vm.evalCode(userProgram);
+        if (userEval.error) {
+            // Setting up the chain itself failed (e.g. a syntax issue isValidFunctionString
+            // missed). Surface the real message rather than dropping it.
+            const msg = dumpError(vm, userEval.error);
+            userEval.error.dispose();
+            reportSandboxError("user", msg);
+            throw new SandboxError(msg, "user");
         }
-        // Success variant — dispose the completion value (we read __OUTPUT instead).
-        evalResult.value.dispose();
+        userEval.value.dispose();
         // Pump loop — drive the user fn's promise chain, including real async host
         // I/O (fetch). Re-arm the per-step CPU interrupt each iteration so a slow
         // network wait doesn't make a post-fetch sync burst trip the original
@@ -327,24 +408,37 @@ async function executeUserFunction(ctx, functionString, args) {
             ]);
         }
         if (typeof output !== "string") {
-            // Promise never settled (timeout / never-resolving await) → no modification.
-            return undefined;
+            // No __OUTPUT and nothing left to await → timed out / never settled.
+            reportSandboxError("timeout", "rule execution timed out or never settled");
+            throw new SandboxError("Execution timed out", "timeout");
         }
         let parsed;
         try {
             parsed = JSON.parse(output);
         }
         catch (_h) {
-            return undefined;
+            // We control the marshaling, so malformed __OUTPUT is our bug.
+            const msg = "sandbox produced invalid output";
+            reportSandboxError("prelude", msg);
+            throw new SandboxError(msg, "prelude");
         }
         if (((_b = parsed.logs) === null || _b === void 0 ? void 0 : _b.length) && ((_c = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _c === void 0 ? void 0 : _c.consoleLogs)) {
             ctx.rq.consoleLogs.push(...parsed.logs);
         }
         if (parsed.error) {
+            // A CPU-deadline interrupt surfaces as a caught guest error ("interrupted") —
+            // classify that as a timeout, not the rule author's logic error. Everything
+            // else is a genuine user throw (sync or async), now surfaced (was swallowed).
+            const interrupted = /interrupt/i.test(String(parsed.error));
+            const kind = interrupted ? "timeout" : "user";
+            const message = interrupted
+                ? "Execution timed out (CPU limit)"
+                : String(parsed.error);
             if ((_d = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _d === void 0 ? void 0 : _d.consoleLogs) {
-                ctx.rq.consoleLogs.push({ type: "error", args: [String(parsed.error)] });
+                ctx.rq.consoleLogs.push({ type: "error", args: [message] });
             }
-            return undefined;
+            reportSandboxError(kind, message);
+            throw new SandboxError(message, kind);
         }
         // Write back any mutations the rule made to $sharedState.
         state_1.default.getInstance().setSharedState((_e = parsed.sharedState) !== null && _e !== void 0 ? _e : {});

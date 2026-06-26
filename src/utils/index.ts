@@ -10,7 +10,54 @@ import {
   QuickJSWASMModule,
 } from "quickjs-emscripten-core";
 import { randomUUID, randomBytes, createHash, createHmac } from "crypto";
+import * as Sentry from "@sentry/browser";
 import GlobalStateProvider from "../components/proxy-middleware/middlewares/state";
+
+/**
+ * Where a sandbox failure originated, so callers + telemetry can tell OUR
+ * shim/infra bugs (`prelude`) from the rule author's (`user`) and timeouts apart.
+ */
+export type SandboxErrorKind = "prelude" | "user" | "timeout";
+export class SandboxError extends Error {
+  kind: SandboxErrorKind;
+  constructor(message: string, kind: SandboxErrorKind) {
+    super(message);
+    this.name = "SandboxError";
+    this.kind = kind;
+  }
+}
+
+/** Read a QuickJS error handle out as a host string (best-effort: name + message). */
+function dumpError(vm: any, handle: any): string {
+  try {
+    const d = vm.dump(handle);
+    if (d && typeof d === "object") {
+      return String((d.name ? d.name + ": " : "") + (d.message ?? JSON.stringify(d)));
+    }
+    return String(d);
+  } catch {
+    return "unknown sandbox error";
+  }
+}
+
+/**
+ * Host-side visibility for sandbox failures (previously these were swallowed).
+ * `prelude`/`timeout` are OUR problem → always report to Sentry; `user` is the
+ * rule author's → console only, to avoid telemetry noise. Sentry is wrapped
+ * because it may be uninitialised in this context (CLI/tests).
+ */
+function reportSandboxError(kind: SandboxErrorKind, message: string): void {
+  // eslint-disable-next-line no-console
+  console.error("[rq-sandbox]", kind, message);
+  if (kind === "user") return;
+  try {
+    Sentry.captureException(new Error("[rq-sandbox:" + kind + "] " + message), {
+      tags: { sandbox: kind },
+    } as any);
+  } catch {
+    /* Sentry not initialised — the console.error above is the fallback */
+  }
+}
 import { SANDBOX_PRELUDE } from "./sandbox-globals";
 
 /**
@@ -304,11 +351,25 @@ export async function executeUserFunction(
     // The user fn is appended after a newline so a trailing '//' comment can't
     // swallow the marshaling code. Result (or error) + console + $sharedState are
     // serialized into the __OUTPUT global, which we read back on the host side.
-    const program =
-      SANDBOX_PRELUDE +
-      "Promise.resolve((" +
+    // 1) Eval our prelude (shims) ON ITS OWN. An error here is OUR bug, not the
+    //    rule author's — dump + report it instead of swallowing it as a generic 187.
+    const preludeResult = vm.evalCode(SANDBOX_PRELUDE);
+    if (preludeResult.error) {
+      const msg = dumpError(vm, preludeResult.error);
+      preludeResult.error.dispose();
+      reportSandboxError("prelude", msg);
+      throw new SandboxError(msg, "prelude");
+    }
+    (preludeResult as { value: { dispose(): void } }).value.dispose();
+
+    // 2) Eval the user fn wrapper. Running the fn inside a `.then` turns a SYNC
+    //    throw into a rejection, so it is captured by `.catch` (→ __OUTPUT.error)
+    //    exactly like an async throw — instead of leaking out as a top-level eval
+    //    error that we'd lose.
+    const userProgram =
+      "Promise.resolve().then(function () { return (" +
       functionString +
-      "\n)(args)).then(function (r) {" +
+      "\n)(args); }).then(function (r) {" +
       "  var out;" +
       "  if (r === undefined || r === null) { out = r; }" +
       '  else if (typeof r === "object") { out = JSON.stringify(r); }' +
@@ -318,14 +379,16 @@ export async function executeUserFunction(
       "  __OUTPUT = JSON.stringify({ error: String((e && e.message) || e), logs: __logs });" +
       "});";
 
-    const evalResult = vm.evalCode(program);
-    if (evalResult.error) {
-      // Syntax/throw at the top level (outside the user fn's promise).
-      evalResult.error.dispose();
-      return undefined;
+    const userEval = vm.evalCode(userProgram);
+    if (userEval.error) {
+      // Setting up the chain itself failed (e.g. a syntax issue isValidFunctionString
+      // missed). Surface the real message rather than dropping it.
+      const msg = dumpError(vm, userEval.error);
+      userEval.error.dispose();
+      reportSandboxError("user", msg);
+      throw new SandboxError(msg, "user");
     }
-    // Success variant — dispose the completion value (we read __OUTPUT instead).
-    (evalResult as { value: { dispose(): void } }).value.dispose();
+    (userEval as { value: { dispose(): void } }).value.dispose();
 
     // Pump loop — drive the user fn's promise chain, including real async host
     // I/O (fetch). Re-arm the per-step CPU interrupt each iteration so a slow
@@ -357,15 +420,19 @@ export async function executeUserFunction(
     }
 
     if (typeof output !== "string") {
-      // Promise never settled (timeout / never-resolving await) → no modification.
-      return undefined;
+      // No __OUTPUT and nothing left to await → timed out / never settled.
+      reportSandboxError("timeout", "rule execution timed out or never settled");
+      throw new SandboxError("Execution timed out", "timeout");
     }
 
     let parsed: any;
     try {
       parsed = JSON.parse(output);
     } catch {
-      return undefined;
+      // We control the marshaling, so malformed __OUTPUT is our bug.
+      const msg = "sandbox produced invalid output";
+      reportSandboxError("prelude", msg);
+      throw new SandboxError(msg, "prelude");
     }
 
     if (parsed.logs?.length && ctx?.rq?.consoleLogs) {
@@ -373,10 +440,19 @@ export async function executeUserFunction(
     }
 
     if (parsed.error) {
+      // A CPU-deadline interrupt surfaces as a caught guest error ("interrupted") —
+      // classify that as a timeout, not the rule author's logic error. Everything
+      // else is a genuine user throw (sync or async), now surfaced (was swallowed).
+      const interrupted = /interrupt/i.test(String(parsed.error));
+      const kind: SandboxErrorKind = interrupted ? "timeout" : "user";
+      const message = interrupted
+        ? "Execution timed out (CPU limit)"
+        : String(parsed.error);
       if (ctx?.rq?.consoleLogs) {
-        ctx.rq.consoleLogs.push({ type: "error", args: [String(parsed.error)] });
+        ctx.rq.consoleLogs.push({ type: "error", args: [message] });
       }
-      return undefined;
+      reportSandboxError(kind, message);
+      throw new SandboxError(message, kind);
     }
 
     // Write back any mutations the rule made to $sharedState.
