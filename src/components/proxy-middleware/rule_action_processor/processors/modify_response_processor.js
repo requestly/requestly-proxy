@@ -6,7 +6,7 @@ import {
 import { getResponseContentTypeHeader, getResponseHeaders, get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response, build_post_process_data, get_file_contents } from "../utils";
 import { getContentType, parseJsonBody } from "../../helpers/http_helpers";
-import { executeUserFunction, getFunctionFromString } from "../../../../utils";
+import { executeUserFunction, isValidFunctionString } from "../../../../utils";
 import { RQ_INTERCEPTED_CONTENT_TYPES_REGEX } from "../../constants";
 
 const process_modify_response_action = async (action, ctx) => {
@@ -123,19 +123,9 @@ const modify_response_using_local = (action, ctx) => {
 };
 
 const modify_response_using_code = async (action, ctx) => {
-  let userFunction = null;
-  try {
-    userFunction = getFunctionFromString(action.response);
-  } catch (error) {
-    // User has provided an invalid function
-    return modify_response(
-      ctx,
-      "Can't parse Requestly function. Please recheck. Error Code 7201. Actual Error: " +
-        error.message
-    );
-  }
-
-  if (!userFunction || typeof userFunction !== "function") {
+  // RQ-2426: validate the function source parses (compile-only, no execution)
+  // before running it in the sandboxed worker.
+  if (!(await isValidFunctionString(action.response))) {
     // User has provided an invalid function
     return modify_response(
       ctx,
@@ -173,10 +163,15 @@ const modify_response_using_code = async (action, ctx) => {
       return modify_response(ctx, finalResponse, action.statusCode);
     } else throw new Error("Returned value is not a string");
   } catch (error) {
-    // Function parsed but failed to execute
+    // Function parsed but failed to execute. Code 188 = sandbox-internal (our shim
+    // broke); 187 = the rule author's code. error.message now carries the real
+    // sandbox error (previously swallowed).
+    const code = error && error.kind === "prelude" ? 188 : 187;
     return modify_response(
       ctx,
-      "Can't execute Requestly function. Please recheck. Error Code 187. Actual Error: " +
+      "Can't execute Requestly function. Please recheck. Error Code " +
+        code +
+        ". Actual Error: " +
         error.message
     );
   }
