@@ -1,5 +1,13 @@
 
 
+## [1.5.1](https://github.com/requestly/requestly-proxy/compare/v1.5.0...v1.5.1) (2026-06-26)
+
+
+### 🐛 Bug Fixes
+
+* **proxy:** fix(proxy): make HTTP response handling Node 24 / Electron 42 safe (#113) ([](https://github.com/requestly/requestly-proxy/commit/e673ab9a015ec005c2a7312afc3cddf4b8200459)), closes [#113](https://github.com/requestly/requestly-proxy/issues/113) [#358](https://github.com/requestly/requestly-proxy/issues/358)
+* **security:** fix(security): RQ-2426 — sandbox rule code (QuickJS-WASM) (#112) ([](https://github.com/requestly/requestly-proxy/commit/67de1087e3b5026ca37570897139ba3b0ce32541)), closes [#112](https://github.com/requestly/requestly-proxy/issues/112) [#112](https://github.com/requestly/requestly-proxy/issues/112)
+
 # [1.5.0](https://github.com/requestly/requestly-proxy/compare/v1.4.0...v1.5.0) (2026-06-22)
 
 # [1.4.0](https://github.com/requestly/requestly-proxy/compare/v1.3.14...v1.4.0) (2026-05-19)
