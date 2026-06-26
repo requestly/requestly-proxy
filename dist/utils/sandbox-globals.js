@@ -367,7 +367,9 @@ const CRYPTO = String.raw `
   var nodeCrypto = {
     randomUUID: g.crypto.randomUUID,
     randomBytes: function (n) {
-      return JSON.parse(__hostCrypto(JSON.stringify({ op: "randomBytes", size: n }))).bytes;
+      // Host returns the bytes as a plain array (only data crosses the boundary);
+      // wrap in the guest Buffer so Node-style randomBytes(n).toString('hex'/'base64') works.
+      return Buffer.from(JSON.parse(__hostCrypto(JSON.stringify({ op: "randomBytes", size: n }))).bytes);
     },
     createHash: function (algo) {
       var buf = "";
