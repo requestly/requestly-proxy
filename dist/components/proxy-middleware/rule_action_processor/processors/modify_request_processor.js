@@ -25,9 +25,16 @@ const modify_request = (ctx, new_req) => {
         ctx.rq_request_body = new_req;
 };
 const modify_request_using_code = async (action, ctx) => {
-    // RQ-2426: validate the function source parses (compile-only, no execution)
-    // before running it in the sandboxed worker.
-    if (!(await (0, utils_2.isValidFunctionString)(action.request))) {
+    let userFunction = null;
+    try {
+        userFunction = (0, utils_2.getFunctionFromString)(action.request);
+    }
+    catch (error) {
+        // User has provided an invalid function
+        return modify_request(ctx, "Can't parse Requestly function. Please recheck. Error Code 7201. Actual Error: " +
+            error.message);
+    }
+    if (!userFunction || typeof userFunction !== "function") {
         // User has provided an invalid function
         return modify_request(ctx, "Can't parse Requestly function. Please recheck. Error Code 944.");
     }
@@ -51,7 +58,7 @@ const modify_request_using_code = async (action, ctx) => {
         catch (_a) {
             /*Do nothing -- could not parse body as JSON */
         }
-        finalRequest = await (0, utils_2.executeUserFunction)(ctx, action.request, args);
+        finalRequest = await (0, utils_2.executeUserFunction)(ctx, userFunction, args);
         if (finalRequest && typeof finalRequest === "string") {
             return modify_request(ctx, finalRequest);
         }
@@ -59,13 +66,8 @@ const modify_request_using_code = async (action, ctx) => {
             throw new Error("Returned value is not a string");
     }
     catch (error) {
-        // Function parsed but failed to execute. Code 188 = sandbox-internal (our shim
-        // broke); 187 = the rule author's code. error.message now carries the real
-        // sandbox error (previously swallowed).
-        const code = error && error.kind === "prelude" ? 188 : 187;
-        return modify_request(ctx, "Can't execute Requestly function. Please recheck. Error Code " +
-            code +
-            ". Actual Error: " +
+        // Function parsed but failed to execute
+        return modify_request(ctx, "Can't execute Requestly function. Please recheck. Error Code 187. Actual Error: " +
             error.message);
     }
 };
