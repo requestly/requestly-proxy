@@ -5,7 +5,7 @@ import {
 } from "@requestly/requestly-core";
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
-import { executeUserFunction, getFunctionFromString } from "../../../../utils";
+import { executeUserFunction, isValidFunctionString } from "../../../../utils";
 
 const process_modify_request_action = (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST_END];
@@ -31,19 +31,9 @@ const modify_request = (ctx, new_req) => {
 };
 
 const modify_request_using_code = async (action, ctx) => {
-  let userFunction = null;
-  try {
-    userFunction = getFunctionFromString(action.request);
-  } catch (error) {
-    // User has provided an invalid function
-    return modify_request(
-      ctx,
-      "Can't parse Requestly function. Please recheck. Error Code 7201. Actual Error: " +
-        error.message
-    );
-  }
-
-  if (!userFunction || typeof userFunction !== "function") {
+  // RQ-2426: validate the function source parses (in an isolate, without
+  // executing it) before running it sandboxed.
+  if (!(await isValidFunctionString(action.request))) {
     // User has provided an invalid function
     return modify_request(
       ctx,
@@ -73,7 +63,7 @@ const modify_request_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
-    finalRequest = await executeUserFunction(ctx, userFunction, args)
+    finalRequest = await executeUserFunction(ctx, action.request, args)
 
     if (finalRequest && typeof finalRequest === "string") {
       return modify_request(ctx, finalRequest);
