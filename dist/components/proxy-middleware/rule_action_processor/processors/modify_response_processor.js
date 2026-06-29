@@ -103,9 +103,16 @@ const modify_response_using_local = (action, ctx) => {
 };
 const modify_response_using_code = async (action, ctx) => {
     var _a, _b, _c, _d;
-    // RQ-2426: validate the function source parses (compile-only, no execution)
-    // before running it in the sandboxed worker.
-    if (!(await (0, utils_2.isValidFunctionString)(action.response))) {
+    let userFunction = null;
+    try {
+        userFunction = (0, utils_2.getFunctionFromString)(action.response);
+    }
+    catch (error) {
+        // User has provided an invalid function
+        return modify_response(ctx, "Can't parse Requestly function. Please recheck. Error Code 7201. Actual Error: " +
+            error.message);
+    }
+    if (!userFunction || typeof userFunction !== "function") {
         // User has provided an invalid function
         return modify_response(ctx, "Can't parse Requestly function. Please recheck. Error Code 944.");
     }
@@ -139,13 +146,8 @@ const modify_response_using_code = async (action, ctx) => {
             throw new Error("Returned value is not a string");
     }
     catch (error) {
-        // Function parsed but failed to execute. Code 188 = sandbox-internal (our shim
-        // broke); 187 = the rule author's code. error.message now carries the real
-        // sandbox error (previously swallowed).
-        const code = error && error.kind === "prelude" ? 188 : 187;
-        return modify_response(ctx, "Can't execute Requestly function. Please recheck. Error Code " +
-            code +
-            ". Actual Error: " +
+        // Function parsed but failed to execute
+        return modify_response(ctx, "Can't execute Requestly function. Please recheck. Error Code 187. Actual Error: " +
             error.message);
     }
 };
