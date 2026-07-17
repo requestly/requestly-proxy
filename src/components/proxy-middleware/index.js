@@ -70,6 +70,21 @@ class ProxyMiddlewareManager {
     }
   };
 
+  // RQ-2426: switch the script-execution mode on the running proxy. The per-request
+  // handler reads `this.proxyConfig.devScriptMode`, so mutating it here takes effect
+  // on the next request — no proxy restart. Only an explicit `true` enables dev mode.
+  setDevScriptMode = (value) => {
+    if (this.proxyConfig) {
+      this.proxyConfig.devScriptMode = value === true;
+    }
+    if (value === true) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "⚠️ Requestly: DEV script-execution mode ENABLED — rule code now runs with FULL system access (no sandbox). Enable only for code you trust."
+      );
+    }
+  };
+
   /* NOT USEFUL */
   init_config = (config = {}) => {
     Object.keys(MIDDLEWARE_TYPE).map((middleware_key) => {
@@ -139,6 +154,18 @@ class ProxyMiddlewareManager {
       // verification when the user has explicitly opted in (e.g. to reach a
       // self-signed / internal upstream). Defaults to secure when unset.
       ctx.proxyToServerRequestOptions.rejectUnauthorized = !this.proxyConfig?.allowInsecureCerts;
+      // RQ-2426: stamp the script-execution mode for THIS request so the code-rule
+      // processors know whether to use the safe QuickJS sandbox (default) or the
+      // legacy full-access path. Read from proxyConfig each request → live, no
+      // restart. Env fallback RQ_SCRIPT_EXECUTION_MODE=dev applies ONLY when the
+      // config hasn't set it and NEVER overrides an explicit false. Only an explicit
+      // `true` enables dev mode; everything else fails safe.
+      const cfgDevScriptMode = this.proxyConfig?.devScriptMode;
+      ctx.rq.devScriptMode =
+        cfgDevScriptMode === true ||
+        (cfgDevScriptMode === undefined &&
+          typeof process !== "undefined" &&
+          process?.env?.RQ_SCRIPT_EXECUTION_MODE === "dev");
       // Figure out a way to enable/disable middleware dynamically
       // instead of re-initing this again
       const rules_middleware = new RulesMiddleware(
@@ -158,11 +185,13 @@ class ProxyMiddlewareManager {
         if (modifyResponseActionExist) {
           const statusCode = ctx.rq_response_status_code || 404;
           const responseHeaders = getResponseHeaders(ctx) || {}
-          ctx.proxyToClientResponse.writeHead(
-              statusCode,
-              http.STATUS_CODES[statusCode],
-              responseHeaders
-            );
+          if (!ctx.proxyToClientResponse.headersSent) {
+            ctx.proxyToClientResponse.writeHead(
+                statusCode,
+                http.STATUS_CODES[statusCode],
+                responseHeaders
+              );
+          }
           ctx.proxyToClientResponse.end(ctx.rq_response_body);
 
           ctx.rq.set_final_response({
@@ -185,14 +214,16 @@ class ProxyMiddlewareManager {
           // Serve a clear SSL error instead of a misleading ERR_NAME_NOT_RESOLVED.
           if (isCertificateError(err)) {
             const { status, contentType, body, errorToken } = dataToServeCertErrorPage(host, err?.code);
-            ctx.proxyToClientResponse.writeHead(
-              status,
-              http.STATUS_CODES[status],
-              {
-                "Content-Type": contentType,
-                "x-rq-error": errorToken,
-              }
-            );
+            if (!ctx.proxyToClientResponse.headersSent) {
+              ctx.proxyToClientResponse.writeHead(
+                status,
+                http.STATUS_CODES[status],
+                {
+                  "Content-Type": contentType,
+                  "x-rq-error": errorToken,
+                }
+              );
+            }
             ctx.proxyToClientResponse.end(body);
             ctx.rq.set_final_response({
               status_code: status,
@@ -222,14 +253,16 @@ class ProxyMiddlewareManager {
             const isAddressUnreachable = await isAddressUnreachableError(hostname);
             if (isAddressUnreachable) {
               const { status, contentType, body } = dataToServeUnreachablePage(host);
-              ctx.proxyToClientResponse.writeHead(
-                status,
-                http.STATUS_CODES[status],
-                { 
-                  "Content-Type": contentType ,
-                  "x-rq-error": "ERR_NAME_NOT_RESOLVED"
-                }
-              );
+              if (!ctx.proxyToClientResponse.headersSent) {
+                ctx.proxyToClientResponse.writeHead(
+                  status,
+                  http.STATUS_CODES[status],
+                  {
+                    "Content-Type": contentType ,
+                    "x-rq-error": "ERR_NAME_NOT_RESOLVED"
+                  }
+                );
+              }
               ctx.proxyToClientResponse.end(body);
               ctx.rq.set_final_response({
                 status_code: status,
@@ -348,11 +381,15 @@ class ProxyMiddlewareManager {
           delete responseHeaders['Transfer-Encoding'];
         }
 
-        ctx.proxyToClientResponse.writeHead(
-          statusCode,
-          http.STATUS_CODES[statusCode],
-          responseHeaders,
-        );
+        // Node 24 commits headers on writeHead and throws on a second call;
+        // guard so a re-entrant write can't crash the response pipeline.
+        if (!ctx.proxyToClientResponse.headersSent) {
+          ctx.proxyToClientResponse.writeHead(
+            statusCode,
+            http.STATUS_CODES[statusCode],
+            responseHeaders,
+          );
+        }
 
         ctx.proxyToClientResponse.write(ctx.rq_response_body);
 

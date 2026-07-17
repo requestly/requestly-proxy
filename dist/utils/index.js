@@ -26,8 +26,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isValidFunctionString = exports.SandboxError = void 0;
+exports.DEV_MODE_DOC_URL = exports.isValidFunctionString = exports.SandboxError = void 0;
 exports.executeUserFunction = executeUserFunction;
+exports.isSandboxCapabilityError = isSandboxCapabilityError;
 const quickjs_singlefile_cjs_release_sync_1 = __importDefault(require("@jitl/quickjs-singlefile-cjs-release-sync"));
 // Import from quickjs-emscripten-core (lean, bring-your-own-variant) rather than
 // the umbrella `quickjs-emscripten`: the umbrella's auto-loader statically
@@ -36,6 +37,9 @@ const quickjs_singlefile_cjs_release_sync_1 = __importDefault(require("@jitl/qui
 // bundler-safe. (Same dependency choice as @requestly/sandbox-node.)
 const quickjs_emscripten_core_1 = require("quickjs-emscripten-core");
 const crypto_1 = require("crypto");
+const util_1 = require("util");
+// DEV-mode (opt-in) only: captures host console output for the legacy executor.
+const capture_console_logs_1 = __importDefault(require("capture-console-logs"));
 const Sentry = __importStar(require("@sentry/browser"));
 const state_1 = __importDefault(require("../components/proxy-middleware/middlewares/state"));
 class SandboxError extends Error {
@@ -67,8 +71,11 @@ function dumpError(vm, handle) {
  * because it may be uninitialised in this context (CLI/tests).
  */
 function reportSandboxError(kind, message) {
+    // TEMP (debug visibility — remove once Sentry capture is confirmed): surface
+    // EVERY sandbox failure to the host console so it's readable outside the sandbox
+    // (background-renderer DevTools). Greppable marker: "RQ-SANDBOX-ERROR".
     // eslint-disable-next-line no-console
-    console.error("[rq-sandbox]", kind, message);
+    console.error("🔴 RQ-SANDBOX-ERROR [" + kind + "] →", message);
     if (kind === "user")
         return;
     try {
@@ -235,7 +242,7 @@ async function hostFetchOp(req) {
     }
 }
 /* Expects that `functionString` has already been validated via isValidFunctionString. */
-async function executeUserFunction(ctx, functionString, args) {
+async function executeUserFunctionSandboxed(ctx, functionString, args) {
     var _a, _b, _c, _d, _e;
     let argsJson = "{}";
     try {
@@ -449,4 +456,79 @@ async function executeUserFunction(ctx, functionString, args) {
     finally {
         vm.dispose();
     }
+}
+/**
+ * DEV MODE (opt-in, RQ-2426) — the LEGACY executor.
+ *
+ * Runs rule code via `new Function(...)` directly in the proxy's Node.js process,
+ * exactly like the pre-sandbox behavior: the rule gets FULL host access
+ * (require/process/fs/child_process). This is the maximum-flexibility path AND the
+ * supply-chain RCE surface the sandbox exists to close, so it must only ever run
+ * when the user has explicitly opted into dev mode (see `executeUserFunction`).
+ *
+ * Mirrors master's executeUserFunction: `$sharedState` is injected and written back,
+ * console output is captured into `ctx.rq.consoleLogs`, promises are awaited, and
+ * object results are JSON-stringified.
+ */
+async function executeUserFunctionLegacy(ctx, functionString, args) {
+    var _a, _b, _c;
+    // Make the reduced safety visible in the rule's own console output (shows up in
+    // the app's rule-execution logs alongside the user's own console.* output).
+    try {
+        (_b = (_a = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _a === void 0 ? void 0 : _a.consoleLogs) === null || _b === void 0 ? void 0 : _b.push({
+            type: "warn",
+            args: [
+                "⚠️ Requestly DEV script mode: this rule ran with FULL system access (no sandbox).",
+            ],
+        });
+    }
+    catch (_d) {
+        /* consoleLogs unavailable (e.g. harness) — non-fatal */
+    }
+    const SHARED_STATE_VAR_NAME = "$sharedState";
+    const sharedState = state_1.default.getInstance().getSharedStateCopy();
+    const { func: generatedFunction, updatedSharedState } = new Function(SHARED_STATE_VAR_NAME, `return { func: ${functionString}, updatedSharedState: ${SHARED_STATE_VAR_NAME}}`)(sharedState);
+    const consoleCapture = new capture_console_logs_1.default();
+    consoleCapture.start(true);
+    let finalResponse = generatedFunction(args);
+    if (util_1.types.isPromise(finalResponse)) {
+        finalResponse = await finalResponse;
+    }
+    consoleCapture.stop();
+    const consoleLogs = consoleCapture.getCaptures();
+    if ((_c = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _c === void 0 ? void 0 : _c.consoleLogs) {
+        ctx.rq.consoleLogs.push(...consoleLogs);
+    }
+    state_1.default.getInstance().setSharedState(updatedSharedState);
+    if (typeof finalResponse === "object") {
+        finalResponse = JSON.stringify(finalResponse);
+    }
+    return finalResponse;
+}
+/**
+ * Entry point for executing a rule's "code" function. Dispatches strictly by mode:
+ *   - dev  (options.devMode === true): legacy `new Function` — full host access.
+ *   - safe (anything else, the default): QuickJS-WASM sandbox — no host access.
+ *
+ * The mode is supplied by the caller (derived from the proxy config / desktop
+ * preference and stamped per-request); it is NEVER derived from rule content, so a
+ * shared/imported rule cannot select its own execution mode.
+ */
+async function executeUserFunction(ctx, functionString, args, options = {}) {
+    if (options.devMode === true) {
+        return executeUserFunctionLegacy(ctx, functionString, args);
+    }
+    return executeUserFunctionSandboxed(ctx, functionString, args);
+}
+/** Public docs page explaining how to enable Developer Script Mode. */
+exports.DEV_MODE_DOC_URL = "https://interceptor-docs.requestly.com/interceptor/desktop-app/developer-script-mode";
+/**
+ * True when a code-rule failure was caused by the SAFE sandbox blocking a host
+ * capability (require of a module, `process`, etc.) — i.e. the kind of error the
+ * user could resolve by enabling Developer Script Mode. Used to append a helpful
+ * doc link to the surfaced error. Deliberately narrow so ordinary logic errors in
+ * the rule don't get the dev-mode hint.
+ */
+function isSandboxCapabilityError(message) {
+    return /not available in sandboxed rules|Cannot require\(|\b(?:process|module|__dirname|__filename|global)\b is not defined/i.test(String(message || ""));
 }

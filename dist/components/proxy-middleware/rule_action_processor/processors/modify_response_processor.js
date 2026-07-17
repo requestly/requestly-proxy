@@ -102,7 +102,7 @@ const modify_response_using_local = (action, ctx) => {
     }
 };
 const modify_response_using_code = async (action, ctx) => {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e, _f;
     // RQ-2426: validate the function source parses (compile-only, no execution)
     // before running it in the sandboxed worker.
     if (!(await (0, utils_2.isValidFunctionString)(action.response))) {
@@ -128,10 +128,15 @@ const modify_response_using_code = async (action, ctx) => {
         try {
             args.responseJSON = JSON.parse(args.response);
         }
-        catch (_e) {
+        catch (_g) {
             /*Do nothing -- could not parse body as JSON */
         }
-        finalResponse = await (0, utils_2.executeUserFunction)(ctx, action.response, args);
+        // RQ-2426: run in DEV (legacy full-access) mode only when the proxy config has
+        // explicitly enabled it (stamped onto ctx.rq per request); otherwise the safe
+        // QuickJS sandbox. The mode is never taken from the rule itself.
+        finalResponse = await (0, utils_2.executeUserFunction)(ctx, action.response, args, {
+            devMode: ((_e = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _e === void 0 ? void 0 : _e.devScriptMode) === true,
+        });
         if (finalResponse && typeof finalResponse === "string") {
             return modify_response(ctx, finalResponse, action.statusCode);
         }
@@ -143,10 +148,20 @@ const modify_response_using_code = async (action, ctx) => {
         // broke); 187 = the rule author's code. error.message now carries the real
         // sandbox error (previously swallowed).
         const code = error && error.kind === "prelude" ? 188 : 187;
-        return modify_response(ctx, "Can't execute Requestly function. Please recheck. Error Code " +
+        let message = "Can't execute Requestly function. Please recheck. Error Code " +
             code +
             ". Actual Error: " +
-            error.message);
+            error.message;
+        // SAFE mode only: if the rule tripped on a host API the sandbox blocks, point
+        // the user to the doc on enabling Developer Script Mode (full access).
+        if (code === 187 &&
+            !(((_f = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _f === void 0 ? void 0 : _f.devScriptMode) === true) &&
+            (0, utils_2.isSandboxCapabilityError)(error && error.message)) {
+            message +=
+                ". This rule uses Node.js APIs that the secure sandbox blocks. To run it with full system access, enable Developer Script Mode: " +
+                    utils_2.DEV_MODE_DOC_URL;
+        }
+        return modify_response(ctx, message, action.statusCode);
     }
 };
 exports.default = process_modify_response_action;

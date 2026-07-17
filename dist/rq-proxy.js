@@ -24,7 +24,7 @@ class RQProxy {
                 sslCaDir: proxyConfig.certPath,
                 host: "0.0.0.0",
             }, (err) => {
-                var _a, _b;
+                var _a, _b, _c, _d;
                 console.log("Proxy Listen");
                 if (err) {
                     console.log(err);
@@ -36,6 +36,9 @@ class RQProxy {
                     // Replay a toggle that was set before the manager existed.
                     if (this.allowInsecureCerts !== undefined) {
                         (_b = (_a = this.proxyMiddlewareManager).setAllowInsecureCerts) === null || _b === void 0 ? void 0 : _b.call(_a, this.allowInsecureCerts);
+                    }
+                    if (this.devScriptMode !== undefined) {
+                        (_d = (_c = this.proxyMiddlewareManager).setDevScriptMode) === null || _d === void 0 ? void 0 : _d.call(_c, this.devScriptMode);
                     }
                 }
             });
@@ -59,6 +62,14 @@ class RQProxy {
             var _a, _b;
             this.allowInsecureCerts = !!value;
             (_b = (_a = this.proxyMiddlewareManager) === null || _a === void 0 ? void 0 : _a.setAllowInsecureCerts) === null || _b === void 0 ? void 0 : _b.call(_a, this.allowInsecureCerts);
+        };
+        // RQ-2426: live-switch the script-execution mode without restarting the proxy.
+        // Remembers the value so it survives being set before the middleware manager is
+        // ready (replayed in initProxy). Only an explicit `true` enables dev mode.
+        this.setDevScriptMode = (value) => {
+            var _a, _b;
+            this.devScriptMode = value === true;
+            (_b = (_a = this.proxyMiddlewareManager) === null || _a === void 0 ? void 0 : _a.setDevScriptMode) === null || _b === void 0 ? void 0 : _b.call(_a, this.devScriptMode);
         };
         this.doSomething = () => {
             console.log("do something");

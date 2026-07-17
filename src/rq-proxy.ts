@@ -20,6 +20,9 @@ class RQProxy {
     // (early in startup) isn't lost — it's replayed once the manager is created.
     private allowInsecureCerts?: boolean;
 
+    // RQ-2426: same replay-safety for the script-execution mode toggle.
+    private devScriptMode?: boolean;
+
     constructor(
         proxyConfig: ProxyConfig, 
         rulesDataSource: IRulesDataSource, 
@@ -60,6 +63,9 @@ class RQProxy {
                     if (this.allowInsecureCerts !== undefined) {
                         this.proxyMiddlewareManager.setAllowInsecureCerts?.(this.allowInsecureCerts);
                     }
+                    if (this.devScriptMode !== undefined) {
+                        this.proxyMiddlewareManager.setDevScriptMode?.(this.devScriptMode);
+                    }
                 }
             }
         );
@@ -85,6 +91,14 @@ class RQProxy {
     setAllowInsecureCerts = (value: boolean) => {
         this.allowInsecureCerts = !!value;
         this.proxyMiddlewareManager?.setAllowInsecureCerts?.(this.allowInsecureCerts);
+    }
+
+    // RQ-2426: live-switch the script-execution mode without restarting the proxy.
+    // Remembers the value so it survives being set before the middleware manager is
+    // ready (replayed in initProxy). Only an explicit `true` enables dev mode.
+    setDevScriptMode = (value: boolean) => {
+        this.devScriptMode = value === true;
+        this.proxyMiddlewareManager?.setDevScriptMode?.(this.devScriptMode);
     }
 
     doSomething = () => {

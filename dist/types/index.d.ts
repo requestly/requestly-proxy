@@ -5,6 +5,7 @@ export interface ProxyConfig {
     rootCertPath: String;
     onCARegenerated?: Function;
     allowInsecureCerts?: boolean;
+    devScriptMode?: boolean;
 }
 export interface Rule {
     id: string;

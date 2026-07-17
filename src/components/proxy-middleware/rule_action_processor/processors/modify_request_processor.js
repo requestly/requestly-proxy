@@ -5,7 +5,12 @@ import {
 } from "@requestly/requestly-core";
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
-import { executeUserFunction, isValidFunctionString } from "../../../../utils";
+import {
+  executeUserFunction,
+  isValidFunctionString,
+  isSandboxCapabilityError,
+  DEV_MODE_DOC_URL,
+} from "../../../../utils";
 
 const process_modify_request_action = (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST_END];
@@ -63,7 +68,12 @@ const modify_request_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
-    finalRequest = await executeUserFunction(ctx, action.request, args)
+    // RQ-2426: run in DEV (legacy full-access) mode only when the proxy config has
+    // explicitly enabled it (stamped onto ctx.rq per request); otherwise the safe
+    // QuickJS sandbox. The mode is never taken from the rule itself.
+    finalRequest = await executeUserFunction(ctx, action.request, args, {
+      devMode: ctx?.rq?.devScriptMode === true,
+    })
 
     if (finalRequest && typeof finalRequest === "string") {
       return modify_request(ctx, finalRequest);
@@ -73,13 +83,23 @@ const modify_request_using_code = async (action, ctx) => {
     // broke); 187 = the rule author's code. error.message now carries the real
     // sandbox error (previously swallowed).
     const code = error && error.kind === "prelude" ? 188 : 187;
-    return modify_request(
-      ctx,
+    let message =
       "Can't execute Requestly function. Please recheck. Error Code " +
-        code +
-        ". Actual Error: " +
-        error.message
-    );
+      code +
+      ". Actual Error: " +
+      error.message;
+    // SAFE mode only: if the rule tripped on a host API the sandbox blocks, point
+    // the user to the doc on enabling Developer Script Mode (full access).
+    if (
+      code === 187 &&
+      !(ctx?.rq?.devScriptMode === true) &&
+      isSandboxCapabilityError(error && error.message)
+    ) {
+      message +=
+        ". This rule uses Node.js APIs that the secure sandbox blocks. To run it with full system access, enable Developer Script Mode: " +
+        DEV_MODE_DOC_URL;
+    }
+    return modify_request(ctx, message);
   }
 };
 
