@@ -338,6 +338,18 @@ const CRYPTO = String.raw `
   "use strict";
   var B = g.__rqb, _u8 = B.u8, _toB64 = B.toB64, _fromHex = B.fromHex;
 
+  // Collect the raw bytes of a string / ArrayBuffer / typed array / Buffer / byte
+  // array so binary input survives the host bridge. String(bytes) would stringify
+  // a Uint8Array as "1,2,3" and hash the wrong data; strings are UTF-8 encoded.
+  function _bytesOf(d) {
+    if (d == null) return [];
+    if (typeof d === "string") return _u8(d);
+    if (d instanceof ArrayBuffer) return Array.prototype.slice.call(new Uint8Array(d));
+    if (d.buffer instanceof ArrayBuffer) return Array.prototype.slice.call(new Uint8Array(d.buffer, d.byteOffset || 0, d.byteLength));
+    if (typeof d.length === "number") return Array.prototype.slice.call(d);
+    return _u8(String(d));
+  }
+
   g.crypto = {
     randomUUID: function () {
       return JSON.parse(__hostCrypto(JSON.stringify({ op: "randomUUID" }))).uuid;
@@ -372,17 +384,17 @@ const CRYPTO = String.raw `
       return Buffer.from(JSON.parse(__hostCrypto(JSON.stringify({ op: "randomBytes", size: n }))).bytes);
     },
     createHash: function (algo) {
-      var buf = "";
+      var bytes = [];
       return {
-        update: function (d) { buf += String(d); return this; },
-        digest: function (enc) { return JSON.parse(__hostCrypto(JSON.stringify({ op: "hash", algo: algo, data: buf, encoding: enc || "hex" }))).digest; }
+        update: function (d) { var b = _bytesOf(d); for (var i = 0; i < b.length; i++) bytes.push(b[i]); return this; },
+        digest: function (enc) { return JSON.parse(__hostCrypto(JSON.stringify({ op: "hash", algo: algo, data: _toB64(bytes), dataEncoding: "base64", encoding: enc || "hex" }))).digest; }
       };
     },
     createHmac: function (algo, key) {
-      var buf = "";
+      var bytes = [];
       return {
-        update: function (d) { buf += String(d); return this; },
-        digest: function (enc) { return JSON.parse(__hostCrypto(JSON.stringify({ op: "hmac", algo: algo, key: String(key), data: buf, encoding: enc || "hex" }))).digest; }
+        update: function (d) { var b = _bytesOf(d); for (var i = 0; i < b.length; i++) bytes.push(b[i]); return this; },
+        digest: function (enc) { return JSON.parse(__hostCrypto(JSON.stringify({ op: "hmac", algo: algo, key: _toB64(_bytesOf(key)), keyEncoding: "base64", data: _toB64(bytes), dataEncoding: "base64", encoding: enc || "hex" }))).digest; }
       };
     }
   };

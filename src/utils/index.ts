@@ -11,6 +11,8 @@ import {
 } from "quickjs-emscripten-core";
 import { randomUUID, randomBytes, createHash, createHmac } from "crypto";
 import { types as utilTypes } from "util";
+import { promises as dnsPromises } from "dns";
+import { isIP } from "net";
 // DEV-mode (opt-in) only: captures host console output for the legacy executor.
 import ConsoleCapture from "capture-console-logs";
 import * as Sentry from "@sentry/browser";
@@ -110,6 +112,8 @@ const EXEC_TIMEOUT_MS = 5000; // per-step CPU/interrupt deadline (sync guest bur
 const OVERALL_TIMEOUT_MS = 15000; // wall-clock cap incl. async host I/O (fetch)
 const FETCH_TIMEOUT_MS = 10000; // per fetch() call
 const MAX_FETCH_BODY_BYTES = 25 * 1024 * 1024;
+const MAX_CONCURRENT_FETCHES = 6; // simultaneous host fetches per execution
+const MAX_TOTAL_FETCHES = 50; // total host fetches per execution
 const MEMORY_LIMIT_BYTES = 128 * 1024 * 1024;
 const MAX_STACK_BYTES = 2 * 1024 * 1024;
 
@@ -121,6 +125,27 @@ function getQuickJSModule(): Promise<QuickJSWASMModule> {
     modulePromise = newQuickJSWASMModuleFromVariant(variant as any);
   }
   return modulePromise;
+}
+
+/**
+ * Serializes the `$sharedState` read-modify-write across ALL code-rule executions
+ * (both safe and dev). Each executor holds this lock from the moment it snapshots
+ * `$sharedState` until it writes the mutated copy back, so two concurrent rules can
+ * never read the same version and then clobber each other's writes (last-writer-wins
+ * data loss). Trade-off: a code rule that does host I/O (fetch/timers) holds the lock
+ * for that I/O, so heavily-concurrent fetching rules run serially — correctness over
+ * throughput. The lock is always released in a `finally`, so a throwing/timing-out
+ * rule can't wedge the queue.
+ */
+let sharedStateChain: Promise<void> = Promise.resolve();
+function acquireSharedStateLock(): Promise<() => void> {
+  let release!: () => void;
+  const nextGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const wait = sharedStateChain;
+  sharedStateChain = sharedStateChain.then(() => nextGate);
+  return wait.then(() => release);
 }
 
 /**
@@ -187,11 +212,140 @@ function hostCryptoOp(req: any): any {
 }
 
 /**
- * Real HTTP via the host's global fetch, bounded by a timeout + body-size cap.
- * Policy: http(s) URLs only (no file:/ftp:/data: etc.), and `credentials: 'omit'`
- * so a (potentially shared) rule cannot ride the user's ambient cookies/sessions.
+ * True for loopback / private / link-local / CGNAT / multicast / reserved
+ * addresses — i.e. destinations a (potentially shared) rule must not be able to
+ * reach via the sandbox fetch bridge. Covers the cloud-metadata endpoint
+ * (169.254.169.254) and IPv4-mapped IPv6. A malformed IPv4 literal is treated as
+ * unsafe (fail-closed).
  */
-async function hostFetchOp(req: any): Promise<any> {
+function isPrivateAddress(ip: string): boolean {
+  const kind = isIP(ip);
+  if (kind === 0) return false; // not an IP literal — caller resolves it first
+  if (kind === 4) {
+    const parts = ip.split(".").map((n) => Number(n));
+    if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
+      return true; // malformed → fail closed
+    }
+    const [a, b] = parts;
+    if (a === 0) return true; // "this" network / unspecified
+    if (a === 10) return true; // 10.0.0.0/8
+    if (a === 127) return true; // loopback
+    if (a === 169 && b === 254) return true; // link-local incl. cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+    if (a === 192 && b === 168) return true; // 192.168.0.0/16
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64.0.0/10
+    if (a >= 224) return true; // multicast / reserved / broadcast
+    return false;
+  }
+  // IPv6
+  const v6 = ip.toLowerCase().replace(/^\[|\]$/g, "");
+  if (v6 === "::1" || v6 === "::") return true; // loopback / unspecified
+  if (v6.startsWith("fe80")) return true; // link-local
+  if (v6.startsWith("fc") || v6.startsWith("fd")) return true; // unique-local fc00::/7
+  if (v6.startsWith("ff")) return true; // multicast
+  const mapped = v6.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/); // IPv4-mapped
+  if (mapped) return isPrivateAddress(mapped[1]);
+  return false;
+}
+
+/**
+ * SSRF guard for the sandbox fetch bridge. Rejects a destination that is (or
+ * resolves to) an internal address. `credentials: 'omit'` is not enough on its
+ * own — a shared/imported rule could otherwise probe localhost, private networks,
+ * or the cloud-metadata endpoint. Literal-IP hosts (incl. obfuscated forms that
+ * `isIP` normalises) and `localhost` aliases are checked directly; hostnames are
+ * DNS-resolved and rejected if ANY resolved address is internal.
+ *
+ * Residual (documented, not closed here): between this resolution and the actual
+ * connection the platform makes its own DNS lookup, so a rebinding attacker with a
+ * sub-timeout TTL flip is not fully prevented — that needs IP pinning via a custom
+ * agent, which the host `fetch` in this environment does not expose. The final
+ * response URL is re-validated by the caller as a second line of defence.
+ */
+async function assertPublicDestination(parsedUrl: URL): Promise<void> {
+  const host = parsedUrl.hostname.replace(/^\[|\]$/g, ""); // strip IPv6 brackets
+  if (isIP(host) !== 0) {
+    if (isPrivateAddress(host)) {
+      throw new Error("blocked: fetch to a private or internal address is not allowed");
+    }
+    return;
+  }
+  const lower = host.toLowerCase();
+  if (lower === "localhost" || lower.endsWith(".localhost")) {
+    throw new Error("blocked: fetch to a private or internal address is not allowed");
+  }
+  let resolved: Array<{ address: string }>;
+  try {
+    resolved = await dnsPromises.lookup(host, { all: true });
+  } catch {
+    throw new Error("blocked: could not resolve fetch destination host");
+  }
+  if (!resolved.length) {
+    throw new Error("blocked: could not resolve fetch destination host");
+  }
+  for (const entry of resolved) {
+    if (isPrivateAddress(entry.address)) {
+      throw new Error("blocked: fetch to a private or internal address is not allowed");
+    }
+  }
+}
+
+/**
+ * Read a fetch response body while enforcing the size cap INCREMENTALLY. Buffering
+ * with `arrayBuffer()` first would allocate the whole (possibly huge) body before
+ * the cap could apply, so we stream and abort the moment we cross the limit.
+ */
+async function readCappedBody(resp: any, controller: AbortController): Promise<Buffer> {
+  const stream = resp.body;
+  if (!stream || typeof stream.getReader !== "function") {
+    // No readable stream (or a non-standard fetch impl) — fall back to buffering
+    // with a post-read cap check.
+    const buf = Buffer.from(await resp.arrayBuffer());
+    if (buf.byteLength > MAX_FETCH_BODY_BYTES) {
+      throw new Error("response body exceeds sandbox size limit");
+    }
+    return buf;
+  }
+  const reader = stream.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength ?? value.length ?? 0;
+      if (total > MAX_FETCH_BODY_BYTES) {
+        try {
+          controller.abort();
+        } catch {
+          /* ignore */
+        }
+        throw new Error("response body exceeds sandbox size limit");
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      /* ignore */
+    }
+  }
+  return Buffer.concat(chunks, total);
+}
+
+/**
+ * Real HTTP via the host's global fetch, bounded by a timeout + body-size cap and
+ * an SSRF policy. Policy: http(s) URLs only (no file:/ftp:/data: etc.),
+ * `credentials: 'omit'` so a (potentially shared) rule cannot ride the user's
+ * ambient cookies/sessions, and both the initial destination AND the final
+ * (post-redirect) response URL must be public — the latter neutralises a public
+ * URL that redirects to the cloud-metadata endpoint. The AbortController is
+ * registered in `controllers` so the executor can cancel a fetch the rule started
+ * but never awaited when the sandbox is torn down.
+ */
+async function hostFetchOp(req: any, controllers: Set<AbortController>): Promise<any> {
   const hostFetch: any = (globalThis as any).fetch;
   if (typeof hostFetch !== "function") {
     throw new Error("fetch is not available in this environment");
@@ -205,7 +359,11 @@ async function hostFetchOp(req: any): Promise<any> {
   if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
     throw new Error("Only http and https URLs are allowed in sandboxed rules");
   }
+  // SSRF guard — initial destination.
+  await assertPublicDestination(parsedUrl);
+
   const controller = new AbortController();
+  controllers.add(controller);
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const resp = await hostFetch(parsedUrl.toString(), {
@@ -215,10 +373,26 @@ async function hostFetchOp(req: any): Promise<any> {
       signal: controller.signal,
       credentials: "omit",
     });
-    const buf = await resp.arrayBuffer();
-    if (buf.byteLength > MAX_FETCH_BODY_BYTES) {
-      throw new Error("response body exceeds sandbox size limit");
+    // SSRF guard — final destination. If the platform followed a redirect to a
+    // DIFFERENT host that is internal, refuse to hand its body back to the
+    // (possibly shared) rule. Only re-checked on an actual cross-host redirect, so
+    // the common no-redirect path pays no extra DNS lookup.
+    if (resp.url) {
+      let finalUrl: URL | null = null;
+      try {
+        finalUrl = new URL(resp.url);
+      } catch {
+        finalUrl = null;
+      }
+      if (
+        finalUrl &&
+        finalUrl.hostname !== parsedUrl.hostname &&
+        (finalUrl.protocol === "http:" || finalUrl.protocol === "https:")
+      ) {
+        await assertPublicDestination(finalUrl);
+      }
     }
+    const bodyBuf = await readCappedBody(resp, controller);
     const headers: Record<string, string> = {};
     resp.headers.forEach((v: string, k: string) => {
       headers[k] = v;
@@ -229,10 +403,11 @@ async function hostFetchOp(req: any): Promise<any> {
       ok: resp.ok,
       url: resp.url,
       headers,
-      body: Buffer.from(buf).toString("utf8"),
+      body: bodyBuf.toString("utf8"),
     };
   } finally {
     clearTimeout(timer);
+    controllers.delete(controller);
   }
 }
 
@@ -251,11 +426,17 @@ async function executeUserFunctionSandboxed(
 
   const QuickJS = await getQuickJSModule();
 
-  // Read the $sharedState snapshot AFTER the last await. Everything from here
-  // to setSharedState() below runs synchronously (no further yields), so the
-  // read-modify-write is atomic w.r.t. the event loop. Reading before the
-  // await would let a concurrent executeUserFunction commit in the gap, and
-  // this call's stale snapshot would then clobber it (last-writer-wins).
+  // Hold the shared-state lock across the whole snapshot → execute → write-back so
+  // a concurrent code rule can't read the same $sharedState version and then clobber
+  // our write (see acquireSharedStateLock). Released in the finally below.
+  const releaseSharedStateLock = await acquireSharedStateLock();
+  // AbortControllers for host fetches this execution started, so the finally can
+  // cancel any the rule never awaited before the VM is disposed.
+  const fetchControllers = new Set<AbortController>();
+  let vm: any = null;
+
+  // Snapshot $sharedState now that the lock is held — no concurrent executor can
+  // commit between this read and our write-back below.
   let sharedStateJson = "{}";
   try {
     sharedStateJson = JSON.stringify(
@@ -265,9 +446,8 @@ async function executeUserFunctionSandboxed(
     sharedStateJson = "{}";
   }
 
-  const vm = QuickJS.newContext();
-
   try {
+    vm = QuickJS.newContext();
     vm.runtime.setMemoryLimit(MEMORY_LIMIT_BYTES);
     vm.runtime.setMaxStackSize(MAX_STACK_BYTES);
     // Hard wall-clock cap — interrupts infinite loops (sync and inside microtasks).
@@ -306,24 +486,61 @@ async function executeUserFunctionSandboxed(
     // fetch bridge — ASYNC via guest promise: return a pending guest Promise now,
     // resolve it with the copied response once the real host fetch settles. The
     // resolve is guarded so a late settle after a timeout/dispose can't throw.
+    //
+    // Bounded so a rule can't exhaust the host: at most MAX_TOTAL_FETCHES calls per
+    // execution (hard reject beyond that) and at most MAX_CONCURRENT_FETCHES running
+    // at once (excess queue on a slot). The slot count only changes synchronously, so
+    // it never transiently exceeds the cap. Slots are handed directly to the next
+    // waiter on release, so the count is a true in-flight gauge.
+    let totalFetches = 0;
+    let activeFetches = 0;
+    const fetchWaiters: Array<() => void> = [];
+    const acquireFetchSlot = (): Promise<void> => {
+      if (activeFetches < MAX_CONCURRENT_FETCHES) {
+        activeFetches++;
+        return Promise.resolve();
+      }
+      return new Promise<void>((resolve) => fetchWaiters.push(resolve));
+    };
+    const releaseFetchSlot = (): void => {
+      const next = fetchWaiters.shift();
+      if (next) next(); // hand the slot over without changing the count
+      else activeFetches = Math.max(0, activeFetches - 1);
+    };
     const fetchFn = vm.newFunction("__hostFetch", (reqHandle) => {
       const req = JSON.parse(vm.getString(reqHandle));
       const deferred = vm.newPromise();
+      const settle = (payload: string) => {
+        try {
+          const h = vm.newString(payload);
+          deferred.resolve(h);
+          h.dispose();
+        } catch {
+          /* context disposed (overall timeout) — drop the result */
+        }
+      };
+      totalFetches++;
+      if (totalFetches > MAX_TOTAL_FETCHES) {
+        settle(
+          JSON.stringify({
+            __fetchError:
+              "sandbox fetch limit exceeded (" + MAX_TOTAL_FETCHES + " per rule execution)",
+          })
+        );
+        return deferred.handle;
+      }
       inflight.push(
         (async () => {
+          await acquireFetchSlot();
           let payload: string;
           try {
-            payload = JSON.stringify(await hostFetchOp(req));
+            payload = JSON.stringify(await hostFetchOp(req, fetchControllers));
           } catch (e: any) {
             payload = JSON.stringify({ __fetchError: String((e && e.message) || e) });
+          } finally {
+            releaseFetchSlot();
           }
-          try {
-            const h = vm.newString(payload);
-            deferred.resolve(h);
-            h.dispose();
-          } catch {
-            /* context disposed (overall timeout) — drop the result */
-          }
+          settle(payload);
         })()
       );
       return deferred.handle;
@@ -471,7 +688,17 @@ async function executeUserFunctionSandboxed(
     // (or null/undefined) — mirrors the previous return contract.
     return parsed.result;
   } finally {
-    vm.dispose();
+    // Cancel any host fetches the rule started but never awaited, so they can't
+    // outlive the sandbox, then tear down the VM and release the shared-state lock.
+    for (const c of fetchControllers) {
+      try {
+        c.abort();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (vm) vm.dispose();
+    releaseSharedStateLock();
   }
 }
 
@@ -506,33 +733,46 @@ async function executeUserFunctionLegacy(
     /* consoleLogs unavailable (e.g. harness) — non-fatal */
   }
 
-  const SHARED_STATE_VAR_NAME = "$sharedState";
-  const sharedState = GlobalStateProvider.getInstance().getSharedStateCopy();
-  const { func: generatedFunction, updatedSharedState } = new Function(
-    SHARED_STATE_VAR_NAME,
-    `return { func: ${functionString}, updatedSharedState: ${SHARED_STATE_VAR_NAME}}`
-  )(sharedState);
+  // Hold the shared-state lock across snapshot → execute → write-back, same as the
+  // safe executor, so concurrent code rules can't clobber each other's $sharedState.
+  const releaseSharedStateLock = await acquireSharedStateLock();
+  try {
+    const SHARED_STATE_VAR_NAME = "$sharedState";
+    const sharedState = GlobalStateProvider.getInstance().getSharedStateCopy();
+    const { func: generatedFunction, updatedSharedState } = new Function(
+      SHARED_STATE_VAR_NAME,
+      `return { func: ${functionString}, updatedSharedState: ${SHARED_STATE_VAR_NAME}}`
+    )(sharedState);
 
-  const consoleCapture = new ConsoleCapture();
-  consoleCapture.start(true);
+    const consoleCapture = new ConsoleCapture();
+    consoleCapture.start(true);
 
-  let finalResponse = generatedFunction(args);
-  if (utilTypes.isPromise(finalResponse)) {
-    finalResponse = await finalResponse;
+    let finalResponse;
+    try {
+      finalResponse = generatedFunction(args);
+      if (utilTypes.isPromise(finalResponse)) {
+        finalResponse = await finalResponse;
+      }
+    } finally {
+      // Always restore the patched console — even if the rule threw synchronously or
+      // its promise rejected — otherwise console interception leaks into later
+      // requests (the capture globally monkey-patches console.*).
+      consoleCapture.stop();
+      const consoleLogs = consoleCapture.getCaptures();
+      if (ctx?.rq?.consoleLogs) {
+        ctx.rq.consoleLogs.push(...consoleLogs);
+      }
+    }
+
+    GlobalStateProvider.getInstance().setSharedState(updatedSharedState);
+
+    if (typeof finalResponse === "object") {
+      finalResponse = JSON.stringify(finalResponse);
+    }
+    return finalResponse;
+  } finally {
+    releaseSharedStateLock();
   }
-
-  consoleCapture.stop();
-  const consoleLogs = consoleCapture.getCaptures();
-  if (ctx?.rq?.consoleLogs) {
-    ctx.rq.consoleLogs.push(...consoleLogs);
-  }
-
-  GlobalStateProvider.getInstance().setSharedState(updatedSharedState);
-
-  if (typeof finalResponse === "object") {
-    finalResponse = JSON.stringify(finalResponse);
-  }
-  return finalResponse;
 }
 
 export interface ExecuteUserFunctionOptions {

@@ -75,7 +75,9 @@ const modify_request_using_code = async (action, ctx) => {
       devMode: ctx?.rq?.devScriptMode === true,
     })
 
-    if (finalRequest && typeof finalRequest === "string") {
+    // Accept any string result, including "" — a rule may intentionally clear the
+    // body. Only a non-string return is an error (truthiness would wrongly reject "").
+    if (typeof finalRequest === "string") {
       return modify_request(ctx, finalRequest);
     } else throw new Error("Returned value is not a string");
   } catch (error) {
@@ -83,17 +85,20 @@ const modify_request_using_code = async (action, ctx) => {
     // broke); 187 = the rule author's code. error.message now carries the real
     // sandbox error (previously swallowed).
     const code = error && error.kind === "prelude" ? 188 : 187;
+    // Dev-mode code can throw a string/object/null (not just an Error), so
+    // normalize before reading .message — else we'd surface "undefined" or throw.
+    const actualError = String((error && error.message) || error);
     let message =
       "Can't execute Requestly function. Please recheck. Error Code " +
       code +
       ". Actual Error: " +
-      error.message;
+      actualError;
     // SAFE mode only: if the rule tripped on a host API the sandbox blocks, point
     // the user to the doc on enabling Developer Script Mode (full access).
     if (
       code === 187 &&
       !(ctx?.rq?.devScriptMode === true) &&
-      isSandboxCapabilityError(error && error.message)
+      isSandboxCapabilityError(actualError)
     ) {
       message +=
         ". This rule uses Node.js APIs that the secure sandbox blocks. To run it with full system access, enable Developer Script Mode: " +

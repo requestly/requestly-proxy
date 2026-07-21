@@ -157,15 +157,11 @@ class ProxyMiddlewareManager {
       // RQ-2426: stamp the script-execution mode for THIS request so the code-rule
       // processors know whether to use the safe QuickJS sandbox (default) or the
       // legacy full-access path. Read from proxyConfig each request → live, no
-      // restart. Env fallback RQ_SCRIPT_EXECUTION_MODE=dev applies ONLY when the
-      // config hasn't set it and NEVER overrides an explicit false. Only an explicit
-      // `true` enables dev mode; everything else fails safe.
-      const cfgDevScriptMode = this.proxyConfig?.devScriptMode;
-      ctx.rq.devScriptMode =
-        cfgDevScriptMode === true ||
-        (cfgDevScriptMode === undefined &&
-          typeof process !== "undefined" &&
-          process?.env?.RQ_SCRIPT_EXECUTION_MODE === "dev");
+      // restart. Only an explicit `true` in the proxy config enables the
+      // full-access legacy path; everything else (false/undefined/non-boolean)
+      // fails safe. The mode is NEVER derived from the environment or the rule
+      // content, so nothing outside the config can silently enable dev mode.
+      ctx.rq.devScriptMode = this.proxyConfig?.devScriptMode === true;
       // Figure out a way to enable/disable middleware dynamically
       // instead of re-initing this again
       const rules_middleware = new RulesMiddleware(
