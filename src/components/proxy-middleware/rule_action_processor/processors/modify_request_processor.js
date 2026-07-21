@@ -5,7 +5,12 @@ import {
 } from "@requestly/requestly-core";
 import { get_request_url } from "../../helpers/proxy_ctx_helper";
 import { build_action_processor_response } from "../utils";
-import { executeUserFunction, getFunctionFromString } from "../../../../utils";
+import {
+  executeUserFunction,
+  isValidFunctionString,
+  isSandboxCapabilityError,
+  DEV_MODE_DOC_URL,
+} from "../../../../utils";
 
 const process_modify_request_action = (action, ctx) => {
   const allowed_handlers = [PROXY_HANDLER_TYPE.ON_REQUEST_END];
@@ -31,19 +36,9 @@ const modify_request = (ctx, new_req) => {
 };
 
 const modify_request_using_code = async (action, ctx) => {
-  let userFunction = null;
-  try {
-    userFunction = getFunctionFromString(action.request);
-  } catch (error) {
-    // User has provided an invalid function
-    return modify_request(
-      ctx,
-      "Can't parse Requestly function. Please recheck. Error Code 7201. Actual Error: " +
-        error.message
-    );
-  }
-
-  if (!userFunction || typeof userFunction !== "function") {
+  // RQ-2426: validate the function source parses (compile-only, no execution)
+  // before running it in the sandboxed worker.
+  if (!(await isValidFunctionString(action.request))) {
     // User has provided an invalid function
     return modify_request(
       ctx,
@@ -73,18 +68,43 @@ const modify_request_using_code = async (action, ctx) => {
       /*Do nothing -- could not parse body as JSON */
     }
 
-    finalRequest = await executeUserFunction(ctx, userFunction, args)
+    // RQ-2426: run in DEV (legacy full-access) mode only when the proxy config has
+    // explicitly enabled it (stamped onto ctx.rq per request); otherwise the safe
+    // QuickJS sandbox. The mode is never taken from the rule itself.
+    finalRequest = await executeUserFunction(ctx, action.request, args, {
+      devMode: ctx?.rq?.devScriptMode === true,
+    })
 
-    if (finalRequest && typeof finalRequest === "string") {
+    // Accept any string result, including "" — a rule may intentionally clear the
+    // body. Only a non-string return is an error (truthiness would wrongly reject "").
+    if (typeof finalRequest === "string") {
       return modify_request(ctx, finalRequest);
     } else throw new Error("Returned value is not a string");
   } catch (error) {
-    // Function parsed but failed to execute
-    return modify_request(
-      ctx,
-      "Can't execute Requestly function. Please recheck. Error Code 187. Actual Error: " +
-        error.message
-    );
+    // Function parsed but failed to execute. Code 188 = sandbox-internal (our shim
+    // broke); 187 = the rule author's code. error.message now carries the real
+    // sandbox error (previously swallowed).
+    const code = error && error.kind === "prelude" ? 188 : 187;
+    // Dev-mode code can throw a string/object/null (not just an Error), so
+    // normalize before reading .message — else we'd surface "undefined" or throw.
+    const actualError = String((error && error.message) || error);
+    let message =
+      "Can't execute Requestly function. Please recheck. Error Code " +
+      code +
+      ". Actual Error: " +
+      actualError;
+    // SAFE mode only: if the rule tripped on a host API the sandbox blocks, point
+    // the user to the doc on enabling Developer Script Mode (full access).
+    if (
+      code === 187 &&
+      !(ctx?.rq?.devScriptMode === true) &&
+      isSandboxCapabilityError(actualError)
+    ) {
+      message +=
+        ". This rule uses Node.js APIs that the secure sandbox blocks. To run it with full system access, enable Developer Script Mode: " +
+        DEV_MODE_DOC_URL;
+    }
+    return modify_request(ctx, message);
   }
 };
 

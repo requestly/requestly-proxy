@@ -37,6 +37,18 @@ class ProxyMiddlewareManager {
                 this.proxyConfig.allowInsecureCerts = !!value;
             }
         };
+        // RQ-2426: switch the script-execution mode on the running proxy. The per-request
+        // handler reads `this.proxyConfig.devScriptMode`, so mutating it here takes effect
+        // on the next request — no proxy restart. Only an explicit `true` enables dev mode.
+        this.setDevScriptMode = (value) => {
+            if (this.proxyConfig) {
+                this.proxyConfig.devScriptMode = value === true;
+            }
+            if (value === true) {
+                // eslint-disable-next-line no-console
+                console.warn("⚠️ Requestly: DEV script-execution mode ENABLED — rule code now runs with FULL system access (no sandbox). Enable only for code you trust.");
+            }
+        };
         /* NOT USEFUL */
         this.init_config = (config = {}) => {
             Object.keys(exports.MIDDLEWARE_TYPE).map((middleware_key) => {
@@ -83,13 +95,21 @@ class ProxyMiddlewareManager {
             const is_detachable = true;
             const logger_middleware = new logger_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.LOGGER], this.loggerService);
             const idx = this.init_request_handler(async (ctx, callback) => {
-                var _a;
+                var _a, _b;
                 ctx.rq = new ctx_rq_namespace_1.default();
                 ctx.rq.set_original_request((0, proxy_ctx_helper_1.get_request_options)(ctx));
                 // RQ-2425: verify upstream TLS certificates by default. Only skip
                 // verification when the user has explicitly opted in (e.g. to reach a
                 // self-signed / internal upstream). Defaults to secure when unset.
                 ctx.proxyToServerRequestOptions.rejectUnauthorized = !((_a = this.proxyConfig) === null || _a === void 0 ? void 0 : _a.allowInsecureCerts);
+                // RQ-2426: stamp the script-execution mode for THIS request so the code-rule
+                // processors know whether to use the safe QuickJS sandbox (default) or the
+                // legacy full-access path. Read from proxyConfig each request → live, no
+                // restart. Only an explicit `true` in the proxy config enables the
+                // full-access legacy path; everything else (false/undefined/non-boolean)
+                // fails safe. The mode is NEVER derived from the environment or the rule
+                // content, so nothing outside the config can silently enable dev mode.
+                ctx.rq.devScriptMode = ((_b = this.proxyConfig) === null || _b === void 0 ? void 0 : _b.devScriptMode) === true;
                 // Figure out a way to enable/disable middleware dynamically
                 // instead of re-initing this again
                 const rules_middleware = new rules_middleware_1.default(this.config[exports.MIDDLEWARE_TYPE.RULES], ctx, this.rulesHelper);

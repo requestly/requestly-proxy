@@ -25,16 +25,10 @@ const modify_request = (ctx, new_req) => {
         ctx.rq_request_body = new_req;
 };
 const modify_request_using_code = async (action, ctx) => {
-    let userFunction = null;
-    try {
-        userFunction = (0, utils_2.getFunctionFromString)(action.request);
-    }
-    catch (error) {
-        // User has provided an invalid function
-        return modify_request(ctx, "Can't parse Requestly function. Please recheck. Error Code 7201. Actual Error: " +
-            error.message);
-    }
-    if (!userFunction || typeof userFunction !== "function") {
+    var _a, _b;
+    // RQ-2426: validate the function source parses (compile-only, no execution)
+    // before running it in the sandboxed worker.
+    if (!(await (0, utils_2.isValidFunctionString)(action.request))) {
         // User has provided an invalid function
         return modify_request(ctx, "Can't parse Requestly function. Please recheck. Error Code 944.");
     }
@@ -55,20 +49,45 @@ const modify_request_using_code = async (action, ctx) => {
         try {
             args.bodyAsJson = JSON.parse(args.request);
         }
-        catch (_a) {
+        catch (_c) {
             /*Do nothing -- could not parse body as JSON */
         }
-        finalRequest = await (0, utils_2.executeUserFunction)(ctx, userFunction, args);
-        if (finalRequest && typeof finalRequest === "string") {
+        // RQ-2426: run in DEV (legacy full-access) mode only when the proxy config has
+        // explicitly enabled it (stamped onto ctx.rq per request); otherwise the safe
+        // QuickJS sandbox. The mode is never taken from the rule itself.
+        finalRequest = await (0, utils_2.executeUserFunction)(ctx, action.request, args, {
+            devMode: ((_a = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _a === void 0 ? void 0 : _a.devScriptMode) === true,
+        });
+        // Accept any string result, including "" — a rule may intentionally clear the
+        // body. Only a non-string return is an error (truthiness would wrongly reject "").
+        if (typeof finalRequest === "string") {
             return modify_request(ctx, finalRequest);
         }
         else
             throw new Error("Returned value is not a string");
     }
     catch (error) {
-        // Function parsed but failed to execute
-        return modify_request(ctx, "Can't execute Requestly function. Please recheck. Error Code 187. Actual Error: " +
-            error.message);
+        // Function parsed but failed to execute. Code 188 = sandbox-internal (our shim
+        // broke); 187 = the rule author's code. error.message now carries the real
+        // sandbox error (previously swallowed).
+        const code = error && error.kind === "prelude" ? 188 : 187;
+        // Dev-mode code can throw a string/object/null (not just an Error), so
+        // normalize before reading .message — else we'd surface "undefined" or throw.
+        const actualError = String((error && error.message) || error);
+        let message = "Can't execute Requestly function. Please recheck. Error Code " +
+            code +
+            ". Actual Error: " +
+            actualError;
+        // SAFE mode only: if the rule tripped on a host API the sandbox blocks, point
+        // the user to the doc on enabling Developer Script Mode (full access).
+        if (code === 187 &&
+            !(((_b = ctx === null || ctx === void 0 ? void 0 : ctx.rq) === null || _b === void 0 ? void 0 : _b.devScriptMode) === true) &&
+            (0, utils_2.isSandboxCapabilityError)(actualError)) {
+            message +=
+                ". This rule uses Node.js APIs that the secure sandbox blocks. To run it with full system access, enable Developer Script Mode: " +
+                    utils_2.DEV_MODE_DOC_URL;
+        }
+        return modify_request(ctx, message);
     }
 };
 exports.default = process_modify_request_action;

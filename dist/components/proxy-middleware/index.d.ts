@@ -15,6 +15,7 @@ declare class ProxyMiddlewareManager {
     loggerService: any;
     sslConfigFetcher: any;
     setAllowInsecureCerts: (value: any) => void;
+    setDevScriptMode: (value: any) => void;
     init_config: (config?: {}) => void;
     init: (config?: {}) => void;
     request_handler_idx: number;
