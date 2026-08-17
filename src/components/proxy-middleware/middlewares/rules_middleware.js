@@ -5,6 +5,10 @@ import {
 } from "../helpers/proxy_ctx_helper";
 import RuleProcessorHelper from "../helpers/rule_processor_helper";
 import RuleActionProcessor from "../rule_action_processor";
+import { PROXY_HANDLER_TYPE } from "../../../lib/proxy";
+import { RULE_ACTION } from "../constants";
+import process_modify_header_action from "../rule_action_processor/processors/modify_header_processor";
+import * as Sentry from "@sentry/browser";
 
 class RulesMiddleware {
   constructor(is_active, ctx, rulesHelper) {
@@ -79,6 +83,24 @@ class RulesMiddleware {
     return rule_actions;
   };
 
+  _applyResponseHeaderRulesForRedirect = (ctx, destUrl) => {
+    const originalUrl = this.request_data.request_url;
+    const prevHandler = ctx.currentHandler;
+    try {
+      this._update_request_data({ request_url: destUrl }); // match response rules against the destination
+      this._init_response_data(ctx);                       // reads the fetched headers on ctx.serverToProxyResponse
+      ctx.currentHandler = PROXY_HANDLER_TYPE.ON_RESPONSE;
+      this._process_rules(true)
+        .filter((action) => action?.action === RULE_ACTION.MODIFY_HEADERS)
+        .forEach((action) => process_modify_header_action(action, ctx)); // mutates ctx.serverToProxyResponse.headers
+    } catch (e) {
+      Sentry.captureException(e); // degrade: serve the redirected response without the failed header mods
+    } finally {
+      ctx.currentHandler = prevHandler;
+      this._update_request_data({ request_url: originalUrl });
+    }
+  };
+
   _update_action_result_objs = (action_result_objs = []) => {
     if (action_result_objs) {
       this.action_result_objs =
@@ -95,6 +117,9 @@ class RulesMiddleware {
     await this._fetch_rules();
 
     this.on_request_actions = this._process_rules();
+
+    ctx.rq.applyResponseHeaderRulesForRedirect = (destUrl) =>
+      this._applyResponseHeaderRulesForRedirect(ctx, destUrl);
 
     const { action_result_objs, continue_request } =
       await this.rule_action_processor.process_actions(

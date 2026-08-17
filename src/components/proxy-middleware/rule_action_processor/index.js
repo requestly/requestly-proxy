@@ -41,10 +41,11 @@ class RuleActionProcessor {
 
       const status_code = action_result.post_process_data.status_code || 200;
       const headers = action_result.post_process_data.headers || {};
-      let body = action_result.post_process_data.body || null;
+      let body = action_result.post_process_data.body;
+      if (body === undefined) body = null;
 
       // console.log("Log", ctx.rq.original_request);
-      if(typeof(body) !== 'string') {
+      if (body !== null && !Buffer.isBuffer(body) && typeof body !== "string") {
         body = JSON.stringify(body);
       }
 
@@ -75,7 +76,7 @@ class RuleActionProcessor {
 
     switch (rule_action.action) {
       case RULE_ACTION.REDIRECT:
-        action_result = process_redirect_action(rule_action, ctx);
+        action_result = await process_redirect_action(rule_action, ctx);
         break;
       case RULE_ACTION.MODIFY_HEADERS:
         action_result = process_modify_header_action(rule_action, ctx);
