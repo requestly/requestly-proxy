@@ -57,10 +57,27 @@ const process_redirect_action = async (action, ctx) => {
       ctx.rq.applyResponseHeaderRulesForRedirect(new_url);
     }
     const headers = stripHopByHopHeaders(ctx.serverToProxyResponse.headers);
+
+    // Recalculate content-length for the flattened buffer
+    let body = response_data.body;
+    if (body !== null && body !== undefined) {
+      if (Buffer.isBuffer(body)) {
+        headers['content-length'] = Buffer.byteLength(body);
+      } else if (body.byteLength !== undefined) {
+        headers['content-length'] = body.byteLength;
+      } else if (typeof body === 'string') {
+        headers['content-length'] = Buffer.byteLength(body);
+      } else {
+        headers['content-length'] = Buffer.byteLength(JSON.stringify(body));
+      }
+    } else {
+      headers['content-length'] = 0; // Prevent hanging on empty bodies
+    }
+
     return build_action_processor_response(
       action,
       true,
-      build_post_process_data(response_data.status_code, headers, response_data.body)
+      build_post_process_data(response_data.status_code, headers, body)
     );
   }
 

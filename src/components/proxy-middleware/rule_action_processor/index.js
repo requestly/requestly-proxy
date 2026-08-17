@@ -45,6 +45,12 @@ class RuleActionProcessor {
       if (body === undefined) body = null;
 
       // console.log("Log", ctx.rq.original_request);
+      if (body instanceof ArrayBuffer) {
+        body = Buffer.from(body);
+      } else if (body && body.buffer instanceof ArrayBuffer && !Buffer.isBuffer(body)) {
+        body = Buffer.from(body.buffer, body.byteOffset, body.byteLength);
+      }
+
       if (body !== null && !Buffer.isBuffer(body) && typeof body !== "string") {
         body = JSON.stringify(body);
       }

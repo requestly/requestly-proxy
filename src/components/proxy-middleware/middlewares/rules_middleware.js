@@ -84,23 +84,22 @@ class RulesMiddleware {
   };
 
   _applyResponseHeaderRulesForRedirect = (ctx, destUrl) => {
-    const originalUrl = this.request_data.request_url;
     const prevHandler = ctx.currentHandler;
     try {
-      this._update_request_data({ request_url: destUrl }); // match response rules against the destination
-      this._init_response_data(ctx);                       // reads the fetched headers on ctx.serverToProxyResponse
+      this._init_response_data(ctx); // Reads fetched headers from ctx.serverToProxyResponse
       ctx.currentHandler = PROXY_HANDLER_TYPE.ON_RESPONSE;
+
+      // Evaluates rules against the ORIGINAL request_url (e.g., https://example.com/exampleAPI)
       this._process_rules(true)
         .filter((action) => action?.action === RULE_ACTION.MODIFY_HEADERS)
-        .forEach((action) => process_modify_header_action(action, ctx)); // mutates ctx.serverToProxyResponse.headers
+        .forEach((action) => process_modify_header_action(action, ctx)); // Mutates headers
     } catch (e) {
-      Sentry.captureException(e); // degrade: serve the redirected response without the failed header mods
+      Sentry.captureException(e);
     } finally {
       ctx.currentHandler = prevHandler;
-      this._update_request_data({ request_url: originalUrl });
     }
   };
-
+  
   _update_action_result_objs = (action_result_objs = []) => {
     if (action_result_objs) {
       this.action_result_objs =

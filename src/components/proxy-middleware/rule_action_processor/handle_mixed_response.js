@@ -7,8 +7,9 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
   if (ctx.isSSL && destinationUrl.includes("http:")) {
     try {
       const resp = await axios.get(destinationUrl, {
-        responseType: "arraybuffer", // never JSON-parse; binary-safe; axios still decompresses gzip
-        validateStatus: () => true,  // relay every upstream status with its real headers instead of throwing
+        responseType: "arraybuffer",
+        decompress: false, // 2. CRITICAL: Prevent Axios from unwrapping gzip
+        validateStatus: () => true,
         headers: { "Cache-Control": "no-cache" },
       });
       return {
