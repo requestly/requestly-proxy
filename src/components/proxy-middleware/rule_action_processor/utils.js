@@ -59,4 +59,15 @@ export const getHost = (ctx) => {
 
 export const get_file_contents = (file_path) => {
   return fs.readFileSync(file_path, "utf-8");
-}
+};
+
+export const stripHopByHopHeaders = (headers) => {
+  const out = { ...(headers || {}) };
+  for (const key of Object.keys(out)) {
+    const k = key.toLowerCase();
+    if (k === "content-length" || k === "transfer-encoding") {
+      delete out[key];
+    }
+  }
+  return out;
+};
