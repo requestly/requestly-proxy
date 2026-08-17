@@ -62,8 +62,8 @@ const process_redirect_action = async (action, ctx) => {
     let body = response_data.body;
     if (body !== null && body !== undefined) {
       if (Buffer.isBuffer(body)) {
-        headers['content-length'] = Buffer.byteLength(body);
-      } else if (body.byteLength !== undefined) {
+        headers['content-length'] = body.length;
+      } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
         headers['content-length'] = body.byteLength;
       } else if (typeof body === 'string') {
         headers['content-length'] = Buffer.byteLength(body);
@@ -71,7 +71,7 @@ const process_redirect_action = async (action, ctx) => {
         headers['content-length'] = Buffer.byteLength(JSON.stringify(body));
       }
     } else {
-      headers['content-length'] = 0; // Prevent hanging on empty bodies
+      headers["content-length"] = 0;
     }
 
     return build_action_processor_response(
