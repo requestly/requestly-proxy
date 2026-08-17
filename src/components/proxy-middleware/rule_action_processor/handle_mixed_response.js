@@ -8,6 +8,7 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
     try {
       const resp = await axios.get(destinationUrl, {
         responseType: "arraybuffer", // never JSON-parse; binary-safe; axios still decompresses gzip
+        validateStatus: () => true,  // relay every upstream status with its real headers instead of throwing
         headers: { "Cache-Control": "no-cache" },
       });
       return {
@@ -19,11 +20,12 @@ const handleMixedResponse = async (ctx, destinationUrl) => {
         },
       };
     } catch (e) {
+      // Only transport failures reach here now (DNS, refused, timeout, redirect loop).
       Sentry.captureException(e);
       return {
         status: true,
         response_data: {
-          headers: { "Cache-Control": "no-cache" },
+          headers: e.response ? e.response.headers : { "Cache-Control": "no-cache" },
           status_code: e.response ? e.response.status : 502,
           body: e.response ? e.response.data : null,
         },
