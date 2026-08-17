@@ -89,10 +89,15 @@ class RulesMiddleware {
       this._init_response_data(ctx); // Reads fetched headers from ctx.serverToProxyResponse
       ctx.currentHandler = PROXY_HANDLER_TYPE.ON_RESPONSE;
 
-      // Evaluates rules against the ORIGINAL request_url (e.g., https://example.com/exampleAPI)
-      this._process_rules(true)
-        .filter((action) => action?.action === RULE_ACTION.MODIFY_HEADERS)
-        .forEach((action) => process_modify_header_action(action, ctx)); // Mutates headers
+      const modifyHeaderActions = this._process_rules(true)
+        .filter((action) => action?.action === RULE_ACTION.MODIFY_HEADERS);
+      // Process actions and collect their result objects
+      const actionResults = modifyHeaderActions.map((action) =>
+        process_modify_header_action(action, ctx)
+      );
+
+      // Register results so the UI logs both rules as applied
+      this._update_action_result_objs(actionResults);
     } catch (e) {
       Sentry.captureException(e);
     } finally {
