@@ -5,6 +5,10 @@ import {
 } from "../helpers/proxy_ctx_helper";
 import RuleProcessorHelper from "../helpers/rule_processor_helper";
 import RuleActionProcessor from "../rule_action_processor";
+import { PROXY_HANDLER_TYPE } from "../../../lib/proxy";
+import { RULE_ACTION } from "../constants";
+import process_modify_header_action from "../rule_action_processor/processors/modify_header_processor";
+import * as Sentry from "@sentry/browser";
 
 class RulesMiddleware {
   constructor(is_active, ctx, rulesHelper) {
@@ -79,6 +83,28 @@ class RulesMiddleware {
     return rule_actions;
   };
 
+  _applyResponseHeaderRulesForRedirect = (ctx, destUrl) => {
+    const prevHandler = ctx.currentHandler;
+    try {
+      this._init_response_data(ctx); // Reads fetched headers from ctx.serverToProxyResponse
+      ctx.currentHandler = PROXY_HANDLER_TYPE.ON_RESPONSE;
+
+      const modifyHeaderActions = this._process_rules(true)
+        .filter((action) => action?.action === RULE_ACTION.MODIFY_HEADERS);
+      // Process actions and collect their result objects
+      const actionResults = modifyHeaderActions.map((action) =>
+        process_modify_header_action(action, ctx)
+      );
+
+      // Register results so the UI logs both rules as applied
+      this._update_action_result_objs(actionResults);
+    } catch (e) {
+      Sentry.captureException(e);
+    } finally {
+      ctx.currentHandler = prevHandler;
+    }
+  };
+  
   _update_action_result_objs = (action_result_objs = []) => {
     if (action_result_objs) {
       this.action_result_objs =
@@ -95,6 +121,9 @@ class RulesMiddleware {
     await this._fetch_rules();
 
     this.on_request_actions = this._process_rules();
+
+    ctx.rq.applyResponseHeaderRulesForRedirect = (destUrl) =>
+      this._applyResponseHeaderRulesForRedirect(ctx, destUrl);
 
     const { action_result_objs, continue_request } =
       await this.rule_action_processor.process_actions(
