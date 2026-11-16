@@ -57,5 +57,8 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "overrides": {
+    "undici": "6.29.1"
+  }
 }
