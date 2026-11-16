@@ -41,7 +41,9 @@ const config: Config = {
             chore: '🔧 Chores',
             refactor: '♻️ Refactoring',
           };
-          const type = typeLabels[commit.type];
+          const type = Object.prototype.hasOwnProperty.call(typeLabels, commit.type)
+            ? typeLabels[commit.type]
+            : undefined;
           if (!type) {
             return; // Hide other types
           }
