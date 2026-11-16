@@ -33,22 +33,22 @@ const config: Config = {
       },
       writerOpts: {
         transform: (commit: any) => {
+          // conventional-changelog passes a read-only commit, so return a copy instead of mutating it.
           // Make sure chore commits are included
-          if (commit.type === 'feat') {
-            commit.type = '✨ Features';
-          } else if (commit.type === 'fix') {
-            commit.type = '🐛 Bug Fixes';
-          } else if (commit.type === 'chore') {
-            commit.type = '🔧 Chores';
-          } else if (commit.type === 'refactor') {
-            commit.type = '♻️ Refactoring';
-          } else {
+          const typeLabels: Record<string, string> = {
+            feat: '✨ Features',
+            fix: '🐛 Bug Fixes',
+            chore: '🔧 Chores',
+            refactor: '♻️ Refactoring',
+          };
+          const type = Object.prototype.hasOwnProperty.call(typeLabels, commit.type)
+            ? typeLabels[commit.type]
+            : undefined;
+          if (!type) {
             return; // Hide other types
           }
-          
-          commit.subject = commit.header
-          
-          return commit;
+
+          return { ...commit, type, subject: commit.header };
         },
       },
     },
